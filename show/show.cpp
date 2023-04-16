@@ -12,18 +12,27 @@ struct Pack {
 };
 
 struct Param {
-    int x_offset;
-    int y_offset;
-    int screen_width;
-    std::wstring ws;
+    std::wstring ws; //字串
+    int screen_width; //緩衝區大小
+
+    int x_offset = 0; //文字在螢幕上的起始x座標
+    int y_offset = 0; //文字在螢幕上的起始y座標
+
+    int glyph_width_factor = 2; //字形寬度的倍數(數值越小越窄)
+    int glyph_width_offset = 2; //字形寬度的偏移量
+
+    wchar_t fill_char = L'█'; //文字填滿部分的符號
+    wchar_t background = L' '; //文字未填滿部分的背景符號
+
+    enum class Effect {
+        FIASH,
+        DEFAULT
+    } effect;
 };
 
 void draw_text(Pack* font, Param* param, wchar_t* screen) {
-    constexpr int char_height = 16;
-    constexpr int char_width = 32;
-    constexpr int width_offset = 2;
-    constexpr wchar_t fill_char = L'█';
-    constexpr wchar_t background = L' ';
+    constexpr int glyph_height = 16;
+    const int glyph_width = 16 * param->glyph_width_factor;
 
     int start = 0;
 
@@ -31,31 +40,41 @@ void draw_text(Pack* font, Param* param, wchar_t* screen) {
         bool is_half_width = false;
         wchar_t ch = param->ws[i];
 
+        int row_begin = param->y_offset;
+        int row_end = glyph_height;
+        int row_count = param->y_offset;
+
+        if(param->effect == Param::Effect::FIASH) {
+            row_begin = 0;
+            row_end = param->y_offset;
+            row_count = 0;
+        }
+
         // 畫出一個字元
-        for (int row = param->y_offset; row < char_height; row++) {
-            for (int col = 0; col < char_width; col += width_offset) {
+        for (int row = row_begin; row < row_end; row++) {
+            for (int col = 0; col < glyph_width; col += param->glyph_width_offset) {
                 // 超出畫面寬度就不用繼續畫了
                 if (param->x_offset + (start + col) >= param->screen_width) {
                     break;
                 }
 
-                bool b = font[ch].font[row - param->y_offset] & 0x8000 >> col / 2;
+                bool b = font[ch].font[row - row_count] & 0x8000 >> col / param->glyph_width_factor;
                 if (b && param->x_offset + col + start >= 0) {
-                    screen[param->x_offset + start + (row * param->screen_width + col)] = fill_char;
+                    screen[param->x_offset + start + (row * param->screen_width + col)] = param->fill_char;
                 }
                 else {
-                    screen[param->x_offset + start + (row * param->screen_width + col)] = background;
+                    screen[param->x_offset + start + (row * param->screen_width + col)] = param->background;
                 }
             }
         }
 
-        for (int row = 0; row < char_height; row++) {
+        for (int row = 0; row < glyph_height; row++) {
             // 判斷是否為半形字元(字元另一半是空的)
             is_half_width |= font[ch].font[row] & 0xFF;
         }
 
         // 計算下一個字元的起始位置
-        start += (is_half_width ? 32 : 16);
+        start += (is_half_width ? glyph_width : glyph_width / 2);
     }
 }
 
@@ -95,6 +114,7 @@ public:
             super::x_offset = i;
             super::y_offset = 0;
             super::ws = ws;
+            super::effect = Effect::DEFAULT;
 
             draw_text(font, this, screen);
             WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
@@ -112,10 +132,28 @@ public:
             super::x_offset = x_offset;
             super::y_offset = i;
             super::ws = ws;
+            super::effect = Effect::DEFAULT;
 
             draw_text(font, this, screen);
             WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+
+        return *this;
+    }
+
+    Marquee& flash(std::wstring ws, int x_offset = 0) {
+        DWORD dwBytesWritten;
+
+        for (int i = 0; i <= 16; i++) {
+            super::x_offset = x_offset;
+            super::y_offset = i;
+            super::ws = ws;
+            super::effect = Effect::FIASH;
+
+            draw_text(font, this, screen);
+            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
 
         return *this;
@@ -153,6 +191,7 @@ int main() {
 
     wchar_t* screen = new wchar_t[screen_size];
     Marquee marquee(width, height, screen, pack, hConsole);
+    marquee.screen_clear();
 
     while (1) {
         /*time_t     now = time(0);
@@ -161,27 +200,28 @@ int main() {
         tstruct = *localtime(&now);
         wcsftime(buf, sizeof(buf), L"%H:%M:%S", &tstruct);*/
 
-        marquee.screen_clear()
-               .marquee(L"歡迎搭乘台中市公車")
-               .delay(2000);
+        marquee.glyph_width_factor = 2;
+        marquee.glyph_width_offset = 1;
 
-        marquee.slide(L"下一站", 64)
-               .delay(1000)
-               .screen_clear()
-               .delay(50);
+        marquee.flash(L"12 雙 十 公 車 ").delay(700);
 
-        marquee.slide(L"朝陽科技大學")
-               .delay(1000)
-               .screen_clear()
-               .delay(50);
+        marquee.glyph_width_factor = 1;
+        marquee.glyph_width_offset = 1;
 
-        marquee.marquee(L"Chaoyang University of Technology", 14)
-               .screen_clear()
-               .delay(200);
+        marquee.flash(L"  明德高中 - 豐原高中 ", 44).delay(2500);
 
-        marquee.slide(L"朝陽科技大學")
-               .delay(4000)
-               .screen_clear()
-               .delay(50);
+        marquee.glyph_width_factor = 1;
+        marquee.glyph_width_offset = 1;
+
+        marquee.flash(L"豐原火車站 - 洲際棒球場", 44).delay(2500);
+
+        marquee.glyph_width_factor = 1;
+        marquee.glyph_width_offset = 1;
+
+        marquee.flash(L"台中火車站 - 一中商圈 ", 44).delay(2500);
+
+        marquee.glyph_width_factor = 2;
+        marquee.glyph_width_offset = 1;
+        marquee.flash(L" 開車不超速 ", 44).delay(700);
     }
 }
