@@ -86,10 +86,10 @@ public:
         return *this;
     }
 
-    Marquee& marquee(std::wstring ws) {
+    Marquee& marquee(std::wstring ws, int len = 32) {
         DWORD dwBytesWritten;
 
-        for (int i = width; i >= -32 * (signed)ws.length(); i--) {
+        for (int i = width; i >= -len * (signed)ws.length(); i--) {
             memset(screen, 0, screen_size * sizeof(wchar_t));
 
             super::x_offset = i;
@@ -128,10 +128,13 @@ public:
 };
 
 int main() {
+    RECT rect = { 0, 0, 1920, 320 };
+    MoveWindow(GetConsoleWindow(), rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, TRUE);
+
     int null;
     std::cin >> null;
 
-    FILE* fp = fopen("unicode_16x16.bin", "rb+");
+    FILE* fp = fopen("mingliu_16x16.bin", "rb+");
     fseek(fp, 0L, SEEK_END);
     int size = ftell(fp);
 
@@ -150,6 +153,7 @@ int main() {
 
     wchar_t* screen = new wchar_t[screen_size];
     Marquee marquee(width, height, screen, pack, hConsole);
+
     while (1) {
         /*time_t     now = time(0);
         struct tm  tstruct;
@@ -161,20 +165,22 @@ int main() {
                .marquee(L"歡迎搭乘台中市公車")
                .delay(2000);
 
-        marquee.slide(L"下一站", 10)
+        marquee.slide(L"下一站", 64)
                .delay(1000)
                .screen_clear()
                .delay(50);
 
-        marquee.slide(L"崇德橋")
+        marquee.slide(L"朝陽科技大學")
                .delay(1000)
                .screen_clear()
                .delay(50);
 
-        marquee.marquee(L"Chongde Bridge");
+        marquee.marquee(L"Chaoyang University of Technology", 14)
+               .screen_clear()
+               .delay(200);
 
-        marquee.slide(L"崇德橋")
-               .delay(5000)
+        marquee.slide(L"朝陽科技大學")
+               .delay(4000)
                .screen_clear()
                .delay(50);
     }
