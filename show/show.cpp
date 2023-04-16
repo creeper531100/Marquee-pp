@@ -1,7 +1,6 @@
 ﻿#define _CRT_SECURE_NO_WARNINGS
 #define _CRT_NON_CONFORMING_SWPRINTFS
 
-#include <bitset>
 #include <iostream>
 #include <string>
 #include <windows.h>
@@ -28,7 +27,7 @@ void draw_text(Pack* font, Param* param, wchar_t* screen) {
 
     int start = 0;
 
-    for(int i = 0; i < param->ws.length(); i++) {
+    for (int i = 0; i < param->ws.length(); i++) {
         bool is_half_width = false;
         wchar_t ch = param->ws[i];
 
@@ -41,7 +40,7 @@ void draw_text(Pack* font, Param* param, wchar_t* screen) {
                 }
 
                 bool b = font[ch].font[row - param->y_offset] & 0x8000 >> col / 2;
-                if(b && param->x_offset + col + start >= 0) {
+                if (b && param->x_offset + col + start >= 0) {
                     screen[param->x_offset + start + (row * param->screen_width + col)] = fill_char;
                 }
                 else {
@@ -60,32 +59,78 @@ void draw_text(Pack* font, Param* param, wchar_t* screen) {
     }
 }
 
-void marquee(Pack* font, HANDLE hConsole, int width, wchar_t* screen, size_t screen_size, std::wstring ws) {
-    Param param{};
-    DWORD dwBytesWritten;
+class Marquee : public Param {
+public:
+    using super = Param;
 
-    for (int i = width; i >= -32 * (signed)ws.length(); i--) {
+public:
+    int width;
+    int height;
+    size_t screen_size;
+
+    wchar_t* screen;
+    Pack* font;
+    HANDLE hConsole;
+public:
+    Marquee(int width, int height, wchar_t* screen, Pack* font, HANDLE hConsole) : width(width), height(height),
+        screen(screen), font(font), hConsole(hConsole)
+    {
+        this->screen_size =  width * height;
+        super::screen_width = width;
+    }
+
+    Marquee& screen_clear() {
+        DWORD dwBytesWritten;
         memset(screen, 0, screen_size * sizeof(wchar_t));
-        param = { i, 0, width, ws };
-        draw_text(font, &param, screen);
         WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
-        std::this_thread::sleep_for(std::chrono::microseconds(10));
+        return *this;
     }
-}
 
-void slide(Pack* font, HANDLE hConsole, int width, wchar_t* screen, size_t screen_size, std::wstring ws) {
-    Param param{};
-    DWORD dwBytesWritten;
+    Marquee& marquee(std::wstring ws) {
+        DWORD dwBytesWritten;
 
-    for (int i = 16; i >= 0; i--) {
-        param = { 0, i, width, ws };
-        draw_text(font, &param, screen);
-        WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        for (int i = width; i >= -32 * (signed)ws.length(); i--) {
+            memset(screen, 0, screen_size * sizeof(wchar_t));
+
+            super::x_offset = i;
+            super::y_offset = 0;
+            super::ws = ws;
+
+            draw_text(font, this, screen);
+            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
+            std::this_thread::sleep_for(std::chrono::microseconds(10));
+        }
+
+        return *this;
     }
-}
+
+    Marquee& slide(std::wstring ws, int x_offset = 0) {
+        DWORD dwBytesWritten;
+
+        for (int i = 16; i >= 0; i--) {
+
+            super::x_offset = x_offset;
+            super::y_offset = i;
+            super::ws = ws;
+
+            draw_text(font, this, screen);
+            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+
+        return *this;
+    }
+
+    Marquee& delay(int time) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(time));
+        return *this;
+    }
+};
 
 int main() {
+    int null;
+    std::cin >> null;
+
     FILE* fp = fopen("unicode_16x16.bin", "rb+");
     fseek(fp, 0L, SEEK_END);
     int size = ftell(fp);
@@ -104,33 +149,33 @@ int main() {
     int screen_size = width * height;
 
     wchar_t* screen = new wchar_t[screen_size];
-    DWORD dwBytesWritten = 0;
-    Param param{};
+    Marquee marquee(width, height, screen, pack, hConsole);
     while (1) {
-        memset(screen, 0, screen_size * sizeof(wchar_t));
-
-        time_t     now = time(0);
+        /*time_t     now = time(0);
         struct tm  tstruct;
         wchar_t    buf[80];
         tstruct = *localtime(&now);
-        wcsftime(buf, sizeof(buf), L"%H:%M:%S", &tstruct);
+        wcsftime(buf, sizeof(buf), L"%H:%M:%S", &tstruct);*/
 
-        std::wstring ws = L"歡迎搭乘 豐原客運 55 路線 " + (std::wstring)buf;
-        marquee(pack, hConsole, width, screen, screen_size, ws);
+        marquee.screen_clear()
+               .marquee(L"歡迎搭乘台中市公車")
+               .delay(2000);
 
-        slide(pack, hConsole, width, screen, screen_size, L"下一站");
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        memset(screen, 0, screen_size * sizeof(wchar_t));
+        marquee.slide(L"下一站", 10)
+               .delay(1000)
+               .screen_clear()
+               .delay(50);
 
-        slide(pack, hConsole, width, screen, screen_size, L"崇德橋");
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        memset(screen, 0, screen_size * sizeof(wchar_t));
+        marquee.slide(L"崇德橋")
+               .delay(1000)
+               .screen_clear()
+               .delay(50);
 
-        slide(pack, hConsole, width, screen, screen_size, L"Bridge");
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        memset(screen, 0, screen_size * sizeof(wchar_t));
+        marquee.marquee(L"Chongde Bridge");
 
-        slide(pack, hConsole, width, screen, screen_size, L"崇德橋");
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        marquee.slide(L"崇德橋")
+               .delay(5000)
+               .screen_clear()
+               .delay(50);
     }
 }
