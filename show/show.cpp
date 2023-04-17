@@ -142,38 +142,31 @@ public:
 
     Marquee& slide2(std::wstring ws, int x_offset = 0) {
         DWORD dwBytesWritten;
-        super::ws = ws;
-        super::x_offset = x_offset;
+        std::wstring old = super::ws;
 
-        super::row_begin = 0;
+        super::x_offset = x_offset;
         super::row_count = 0;
 
         for (int i = 0; i <= 16; i++) {
+            super::ws = old;
             super::y_offset = i;
             super::row_count = -i;
+            super::row_begin = 0;
             super::row_end = 16 - i;
-
             draw_text(font, this, screen);
 
+            super::y_offset = 16 - i;
+            super::row_count = 16 - i;
+            super::row_begin = super::row_end;
+            super::row_end = 16;
+            super::ws = ws;
+
+            draw_text(font, this, screen);
             WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            std::this_thread::sleep_for(std::chrono::microseconds(1));
         }
+
         return *this;
-
-        /*DWORD dwBytesWritten;
-        super::ws = ws;
-        super::x_offset = x_offset;
-        super::row_begin = 0;
-
-
-        for (int i = 0; i <= 16; i++) {
-            super::y_offset = i;
-            super::row_count = -i;
-
-            draw_text(font, this, screen);
-        }
-
-        return *this;*/
     }
 
     Marquee& flash(std::wstring ws, int x_offset = 0) {
@@ -211,7 +204,7 @@ int count_size(std::wstring show) {
 }
 
 int main() {
-    RECT rect = { 0, 0, 1920, 320 };
+    RECT rect = { 0, 0, 960, 320 };
     MoveWindow(GetConsoleWindow(), rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, TRUE);
 
     int null;
@@ -238,21 +231,39 @@ int main() {
     marquee.screen_clear();
 
     while (1) {
-        /*marquee.slide(L"abc").delay(500).screen_clear();
 
-        std::wstring title = L"歡迎";
-        marquee.marquee(title, 10, -count_size(title));
+        std::wstring ws = L"往七堵";
+        int begin = (width / 2) - (ws.length() * 16);
 
-        marquee.flash(L"HelloWorld", (width / 2) - 36)
-            .delay(500)
-            .screen_clear()
-            .delay(100);
-            */
+        marquee.slide2(ws, begin)
+            .delay(1000).screen_clear();
 
-        marquee.slide2(L"696969")
-            .delay(500)
-            .screen_clear()
-            .delay(100);
+        ws = L"To QiDu"; 
+        begin = (width / 2) - (ws.length() * 8);
+        marquee.slide2(ws, begin)
+            .delay(1000).screen_clear();
 
+        ws = L"第一車";
+        begin = (width / 2) - (ws.length() * 16);
+        marquee.slide2(ws, begin)
+            .delay(1000).screen_clear();
+
+        ws = L" Car1 ";
+        begin = (width / 2) - (ws.length() * 8);
+        marquee.slide2(ws, begin)
+            .delay(1000).screen_clear();
+
+        ws = L"1107次";
+        begin = (width / 2) - (ws.length() * 8) - 8;
+        marquee.slide2(ws, begin)
+            .delay(1000).screen_clear();
+
+        ws = L"區間車";
+        begin = (width / 2) - (ws.length() * 16);
+        marquee.slide2(ws, begin)
+            .delay(1000).screen_clear();
+
+        marquee.slide2(L"Local", begin)
+            .delay(1000).screen_clear();
     }
 }
