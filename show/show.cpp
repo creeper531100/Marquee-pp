@@ -24,10 +24,9 @@ struct Param {
     wchar_t fill_char = L'█'; //文字填滿部分的符號
     wchar_t background = L' '; //文字未填滿部分的背景符號
 
-    enum class Effect {
-        FIASH,
-        DEFAULT
-    } effect;
+    int row_begin = 0;
+    int row_end = 16;
+    int row_count = 0;
 };
 
 void draw_text(Pack* font, Param* param, wchar_t* screen) {
@@ -38,17 +37,11 @@ void draw_text(Pack* font, Param* param, wchar_t* screen) {
 
     for (int i = 0; i < param->ws.length(); i++) {
         bool is_half_width = false;
-        wchar_t ch = param->ws[i];
+        wchar_t& ch = param->ws[i];
 
-        int row_begin = param->y_offset;
-        int row_end = glyph_height;
-        int row_count = param->y_offset;
-
-        if(param->effect == Param::Effect::FIASH) {
-            row_begin = 0;
-            row_end = param->y_offset;
-            row_count = 0;
-        }
+        int& row_begin = param->row_begin;
+        int& row_end = param->row_end;
+        int& row_count = param->row_count;
 
         // 畫出一個字元
         for (int row = row_begin; row < row_end; row++) {
@@ -58,6 +51,7 @@ void draw_text(Pack* font, Param* param, wchar_t* screen) {
                     break;
                 }
 
+                //TODO
                 bool b = font[ch].font[row - row_count] & 0x8000 >> col / param->glyph_width_factor;
                 if (b && param->x_offset + col + start >= 0) {
                     screen[param->x_offset + start + (row * param->screen_width + col)] = param->fill_char;
@@ -107,14 +101,16 @@ public:
 
     Marquee& marquee(std::wstring ws, int x_offset, int len) {
         DWORD dwBytesWritten;
+        super::y_offset = 0;
+        super::ws = ws;
+
+        super::row_begin = 0;
+        super::row_end = 16;
+        super::row_count = 0;
 
         for (int i = x_offset; i >= len; i--) {
             memset(screen, 0, screen_size * sizeof(wchar_t));
-
             super::x_offset = i;
-            super::y_offset = 0;
-            super::ws = ws;
-            super::effect = Effect::DEFAULT;
 
             draw_text(font, this, screen);
             WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
@@ -127,12 +123,14 @@ public:
     Marquee& slide(std::wstring ws, int x_offset = 0) {
         DWORD dwBytesWritten;
 
-        for (int i = 16; i >= 0; i--) {
+        super::ws = ws;
+        super::x_offset = x_offset;
+        super::row_end = 16;
 
-            super::x_offset = x_offset;
+        for (int i = 16; i >= 0; i--) {
             super::y_offset = i;
-            super::ws = ws;
-            super::effect = Effect::DEFAULT;
+            super::row_begin = i;
+            super::row_count = i;
 
             draw_text(font, this, screen);
             WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
@@ -142,14 +140,53 @@ public:
         return *this;
     }
 
-    Marquee& flash(std::wstring ws, int x_offset = 0) {
+    Marquee& slide2(std::wstring ws, int x_offset = 0) {
         DWORD dwBytesWritten;
+        super::ws = ws;
+        super::x_offset = x_offset;
+
+        super::row_begin = 0;
+        super::row_count = 0;
 
         for (int i = 0; i <= 16; i++) {
-            super::x_offset = x_offset;
             super::y_offset = i;
-            super::ws = ws;
-            super::effect = Effect::FIASH;
+            super::row_count = -i;
+            super::row_end = 16 - i;
+
+            draw_text(font, this, screen);
+
+            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        return *this;
+
+        /*DWORD dwBytesWritten;
+        super::ws = ws;
+        super::x_offset = x_offset;
+        super::row_begin = 0;
+
+
+        for (int i = 0; i <= 16; i++) {
+            super::y_offset = i;
+            super::row_count = -i;
+
+            draw_text(font, this, screen);
+        }
+
+        return *this;*/
+    }
+
+    Marquee& flash(std::wstring ws, int x_offset = 0) {
+        DWORD dwBytesWritten;
+        super::ws = ws;
+        super::x_offset = x_offset;
+
+        super::row_begin = 0;
+        super::row_count = 0;
+
+        for (int i = 0; i <= 16; i++) {
+            super::y_offset = i;
+            super::row_end = i;
 
             draw_text(font, this, screen);
             WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
@@ -201,61 +238,21 @@ int main() {
     marquee.screen_clear();
 
     while (1) {
-        time_t     now = time(0);
-        struct tm  tstruct;
-        wchar_t    buf[80];
-        tstruct = *localtime(&now);
-        wcsftime(buf, sizeof(buf), L"%H:%M", &tstruct);
+        /*marquee.slide(L"abc").delay(500).screen_clear();
 
-        std::wstring title = L"歡迎搭乘台中市公車";
-        marquee.marquee(title, width, -count_size(title));
+        std::wstring title = L"歡迎";
+        marquee.marquee(title, 10, -count_size(title));
 
-        marquee.slide(L"下一站", (width / 2) - 48)
-               .delay(1000)
-               .screen_clear()
-               .delay(100);
+        marquee.flash(L"HelloWorld", (width / 2) - 36)
+            .delay(500)
+            .screen_clear()
+            .delay(100);
+            */
 
-        std::wstring ws = L"文化新村";
-        int begin = (width / 2) - (ws.length() * 16);
-        marquee.slide(ws, begin)
-               .delay(1000);
-
-        std::wstring english = L"Cultural Community";
-        std::wstring show = ws + std::wstring(begin / 16, L' ') + english + L"  ";
-
-        marquee.marquee(show + ws, begin, -count_size(show))
-               .delay(2000);
-
-        marquee.flash(std::wstring(16 * 8, L' '), 0);
-
-        marquee.flash(buf, (width / 2) - 36)
-            .delay(1000)
+        marquee.slide2(L"696969")
+            .delay(500)
             .screen_clear()
             .delay(100);
 
-
-        /*marquee.glyph_width_factor = 2;
-        marquee.glyph_width_offset = 1;
-
-        marquee.flash(L"12 雙 十 公 車 ").delay(700);
-
-        marquee.glyph_width_factor = 1;
-        marquee.glyph_width_offset = 1;
-
-        marquee.flash(L"  明德高中 - 豐原高中 ", 44).delay(2500);
-
-        marquee.glyph_width_factor = 1;
-        marquee.glyph_width_offset = 1;
-
-        marquee.flash(L"豐原火車站 - 洲際棒球場", 44).delay(2500);
-
-        marquee.glyph_width_factor = 1;
-        marquee.glyph_width_offset = 1;
-
-        marquee.flash(L"台中火車站 - 一中商圈 ", 44).delay(2500);
-
-        marquee.glyph_width_factor = 2;
-        marquee.glyph_width_offset = 1;
-        marquee.flash(L" 開車不超速 ", 44).delay(700);*/
     }
 }
