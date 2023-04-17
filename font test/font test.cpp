@@ -216,16 +216,16 @@ struct Pack2 {
 
 int main() {
     char font_buf[FONT_SIZE * FONT_SIZE / 8] = {'\0'};
-    const char* unicode_font_name = "mingliu_16x16.bin";
+    const char* unicode_font_name = "english_16x16.bin";
     FILE* file = fopen(unicode_font_name, "wb+");
 
-    freeType_init("mingliu.ttc", FONT_SIZE);
+    freeType_init("eng.ttf", FONT_SIZE);
 
-    Pack* pack = new Pack[0xFFFF];
+    Pack* pack = new Pack[0xFF];
 
-    for (int i = 0; i < 0xFFFF; ++i) {
-        if (get_font_by_index("mingliu.ttc", FONT_SIZE, i, font_buf)) {
-            //std::cout << print_font(font_buf, sizeof(font_buf)) << std::endl;
+    for (int i = 0; i < 0xFF; ++i) {
+        if (get_font_by_index("eng.ttf", FONT_SIZE, i, font_buf)) {
+            std::cout << print_font(font_buf, sizeof(font_buf)) << std::endl;
             to_pack(font_buf, &pack[i]);
             fwrite(&pack[i], 1, sizeof(Pack), file);
         }

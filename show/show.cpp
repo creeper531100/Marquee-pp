@@ -204,18 +204,20 @@ int count_size(std::wstring show) {
 }
 
 int main() {
-    RECT rect = { 0, 0, 960, 320 };
+    RECT rect = { 0, 0, 1920, 320 };
     MoveWindow(GetConsoleWindow(), rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, TRUE);
 
     int null;
+    std::cin >> null;
 
-    FILE* fp = fopen("unicode_16x16.bin", "rb+");
+    FILE* fp = fopen("mingliu7.03/mingliu_Fixedsys_Excelsior.bin", "rb+");
     fseek(fp, 0L, SEEK_END);
     int size = ftell(fp);
 
     char* buffer = new char[size];
     fseek(fp, 0L, SEEK_SET);
     fread(buffer, size, 1, fp);
+    fclose(fp);
     Pack* pack = (Pack*)buffer;
 
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -231,39 +233,25 @@ int main() {
     marquee.screen_clear();
 
     while (1) {
+        marquee.screen_clear()
+            .marquee(L"歡迎搭乘台中市公車", width, -count_size(L"歡迎搭乘台中市公車"))
+            .delay(2000);
 
-        std::wstring ws = L"往七堵";
-        int begin = (width / 2) - (ws.length() * 16);
+        marquee.slide(L"下一站", (width / 2) - 48)
+            .delay(1000)
+            .screen_clear()
+            .delay(50);
 
-        marquee.slide2(ws, begin)
-            .delay(1000).screen_clear();
+        marquee.slide(L"西屯郵局")
+            .delay(1000)
+            .screen_clear()
+            .delay(50);
 
-        ws = L"To QiDu"; 
-        begin = (width / 2) - (ws.length() * 8);
-        marquee.slide2(ws, begin)
-            .delay(1000).screen_clear();
+        marquee.marquee(L"Xitun Post Office", width, -count_size(L"Xitun Post Office"));
 
-        ws = L"第一車";
-        begin = (width / 2) - (ws.length() * 16);
-        marquee.slide2(ws, begin)
-            .delay(1000).screen_clear();
-
-        ws = L" Car1 ";
-        begin = (width / 2) - (ws.length() * 8);
-        marquee.slide2(ws, begin)
-            .delay(1000).screen_clear();
-
-        ws = L"1107次";
-        begin = (width / 2) - (ws.length() * 8) - 8;
-        marquee.slide2(ws, begin)
-            .delay(1000).screen_clear();
-
-        ws = L"區間車";
-        begin = (width / 2) - (ws.length() * 16);
-        marquee.slide2(ws, begin)
-            .delay(1000).screen_clear();
-
-        marquee.slide2(L"Local", begin)
-            .delay(1000).screen_clear();
+        marquee.slide(L"西屯郵局")
+            .delay(5000)
+            .screen_clear()
+            .delay(50);
     }
 }
