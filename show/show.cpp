@@ -30,20 +30,9 @@ struct Param {
 };
 
 bool trigger = false;
-wchar_t wbuf[80];
 void listenForKeyboardEvents() {
     while (true) {
-        time_t     now = time(0);
-        tm  tstruct;
-        char       buf[80];
-        tstruct = *localtime(&now);
-        strftime(buf, sizeof(buf), "%S", &tstruct);
-        wcsftime(wbuf, sizeof(buf), L"%H:%M", &tstruct);
-
-        trigger = (atoi(buf) % 25) == 0;
-        //MessageBoxA(0, std::to_string((atoi(buf) % 10)).c_str(), 0, 0);
-
-        //trigger = GetAsyncKeyState(VK_SPACE);
+        trigger = GetAsyncKeyState(VK_SPACE);
         std::this_thread::sleep_for(std::chrono::milliseconds(800));
     }
 }
@@ -288,15 +277,24 @@ int main() {
     marquee.screen_clear();
     std::thread(listenForKeyboardEvents).detach();
 
+    wchar_t wbuf[80];
     while (1) {
-
         while(1) {
-            if
-            (marquee.marquee(L"歡迎搭乘台中市公車", width, -count_size(L"歡迎搭乘台中市公車")).done) break;
+            time_t     now = time(0);
+            tm  tstruct;
+            char       buf[80];
+            tstruct = *localtime(&now);
+            strftime(buf, sizeof(buf), "%S", &tstruct);
+            wcsftime(wbuf, sizeof(buf), L"%H:%M", &tstruct);
 
-            if
-            (marquee.flash(wbuf, (width / 2) - 36)
-                    .long_delay(150).done) break;
+            std::wstring title = L"歡迎搭乘大順客運700路線";
+            if (marquee.marquee(title, width, -count_size(title)).done){
+                break;
+            }
+
+            if (marquee.flash(wbuf, (width / 2) - 36).long_delay(150).done) {
+                break;
+            }
         }
 
         marquee.screen_clear().jump_to_here();
