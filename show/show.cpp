@@ -155,33 +155,25 @@ int main() {
     Marquee marquee(width, height, screen, pack, hConsole);
 
     while (1) {
-        /*time_t     now = time(0);
+        time_t     now = time(0);
         struct tm  tstruct;
         wchar_t    buf[80];
         tstruct = *localtime(&now);
-        wcsftime(buf, sizeof(buf), L"%H:%M:%S", &tstruct);*/
+        wcsftime(buf, sizeof(buf), L"%H:%M:%S", &tstruct);
 
         marquee.screen_clear()
-               .marquee(L"歡迎搭乘台中市公車")
-               .delay(2000);
+               .marquee(L"歡迎搭乘 豐原客運 55 路線 " + std::wstring(buf));
 
-        marquee.slide(L"下一站", 64)
-               .delay(1000)
-               .screen_clear()
-               .delay(50);
+        marquee.screen_clear()
+            .marquee(L"歡迎搭乘 豐原客運 55 路線 " + std::wstring(buf), 0);
 
-        marquee.slide(L"朝陽科技大學")
-               .delay(1000)
-               .screen_clear()
-               .delay(50);
+        marquee.screen_clear()
+            .marquee(L"55 路線 " + std::wstring(buf), -15);
 
-        marquee.marquee(L"Chaoyang University of Technology", 14)
-               .screen_clear()
-               .delay(200);
+        marquee.screen_clear()
+            .marquee(buf, -25);
 
-        marquee.slide(L"朝陽科技大學")
-               .delay(4000)
-               .screen_clear()
-               .delay(50);
+        marquee.screen_clear()
+            .marquee(L"下一站: 崇德橋  Next: Chongde Bridge");
     }
 }
