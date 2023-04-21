@@ -132,6 +132,21 @@ public:
         return *this;
     }
 
+    Marquee& show(std::wstring ws, int x_offset) {
+        DWORD dwBytesWritten;
+        super::y_offset = 0;
+        super::ws = ws;
+        super::row_begin = 0;
+        super::row_end = 16;
+        super::row_count = 0;
+        super::x_offset = x_offset;
+
+        draw_text(font, this, screen);
+        WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
+
+        return *this;
+    }
+
     Marquee& slide(std::wstring ws, int x_offset = 0) {
         DWORD dwBytesWritten;
 
@@ -167,7 +182,7 @@ public:
             super::y_offset = i;
             super::row_count = -i;
             super::row_begin = 0;
-            super::row_end = 17 - i;
+            super::row_end = 16 - i;
             super::x_offset = old_x_offset;
             draw_text(font, this, screen);
 
@@ -179,9 +194,13 @@ public:
             super::x_offset = x_offset;
             draw_text(font, this, screen);
 
-            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
 
-            if (delay(1).done) {
+            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
+            if(i % 3 == 0) {
+                delay(1);
+            }
+            
+            if (done) {
                 return *this;
             }
         }
@@ -189,7 +208,7 @@ public:
         return *this;
     }
 
-    Marquee& flash(std::wstring ws, int x_offset = 0) {
+    Marquee& flash(std::wstring ws, int x_offset = 0, void(*ptr)(Marquee*, Pack*, wchar_t*) = NULL) {
         DWORD dwBytesWritten;
         super::ws = ws;
         super::x_offset = x_offset;
@@ -201,7 +220,13 @@ public:
             super::y_offset = i;
             super::row_end = i;
 
-            draw_text(font, this, screen);
+            if(ptr != NULL) {
+                ptr(this, font, screen);
+            }
+            else {
+                draw_text(font, this, screen);
+            }
+
             WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
 
             if(delay(1).done) {
@@ -251,9 +276,9 @@ int main() {
     MoveWindow(GetConsoleWindow(), rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, TRUE);
 
     int null;
-    std::cin >> null;
+    //std::cin >> null;
 
-    FILE* fp = fopen("mingliu7.03/mingliu_Fixedsys_Excelsior.bin", "rb+");
+    FILE* fp = fopen("unicode_16x16.bin", "rb+");
     fseek(fp, 0L, SEEK_END);
     int size = ftell(fp);
 
@@ -278,8 +303,61 @@ int main() {
     std::thread(listenForKeyboardEvents).detach();
 
     wchar_t wbuf[80];
+    std::wstring line = L"901";
+    marquee.slide(line, 5);
+    int offset = count_size(line) + 5;
     while (1) {
-        while(1) {
+        marquee.glyph_width_factor = 2;
+        marquee.glyph_width_offset = 1;
+        marquee.flash(L"雙 十 公 車 ", offset).delay(700);
+
+        marquee.flash(L"", offset, [](Marquee* self, Pack* font, wchar_t* screen) {
+            int offset = self->x_offset;
+            self->x_offset = offset;
+            self->ws = L"豐原 - ";
+            self->glyph_width_factor = 2;
+            self->glyph_width_offset = 1;
+            draw_text(font, self, screen);
+
+            self->x_offset = offset + count_size(self->ws);
+            self->ws = L"明德高中";
+            self->glyph_width_factor = 1;
+            self->glyph_width_offset = 1;
+            draw_text(font, self, screen);
+            self->x_offset = offset;
+
+        }).delay(2500);
+
+        marquee.glyph_width_factor = 2;
+        marquee.glyph_width_offset = 1;
+
+        marquee.flash(L"豐東路-潭子", offset).delay(2500);
+
+        marquee.flash(L"", offset, [](Marquee* self, Pack* font, wchar_t* screen) {
+            int offset = self->x_offset;
+            self->x_offset = offset;
+            self->ws = L"舊社 - ";
+            self->glyph_width_factor = 2;
+            self->glyph_width_offset = 1;
+            draw_text(font, self, screen);
+
+            self->x_offset = offset + count_size(self->ws);
+            self->ws = L"新民高中";
+            self->glyph_width_factor = 1;
+            self->glyph_width_offset = 1;
+            draw_text(font, self, screen);
+            self->x_offset = offset;
+        }).delay(2500);
+
+        marquee.glyph_width_factor = 1;
+        marquee.glyph_width_offset = 1;
+        marquee.flash(L" 台中火車站 - 一中商圈", offset).delay(2500);
+
+        marquee.glyph_width_factor = 2;
+        marquee.glyph_width_offset = 1;
+        marquee.flash(L" 開車不超速 ", offset).delay(700);
+
+        /*while(1) {
             time_t     now = time(0);
             tm  tstruct;
             char       buf[80];
@@ -320,6 +398,6 @@ int main() {
         marquee.slide2(wbuf, (width / 2) - 36)
                .long_delay(60);
 
-        marquee.flash(std::wstring(5, L' '), (width / 2) - 36);
+        marquee.flash(std::wstring(5, L' '), (width / 2) - 36);*/
     }
 }
