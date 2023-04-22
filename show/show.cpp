@@ -31,6 +31,7 @@ struct Param {
 };
 
 bool trigger = false;
+
 void listenForKeyboardEvents() {
     while (true) {
         trigger = GetAsyncKeyState(VK_SPACE);
@@ -136,7 +137,8 @@ public:
         return *this;
     }
 
-    Marquee& marquee(const std::wstring ws, const int x_offset, const int len, const uint64_t delay_time = delay_step(1, 1)) {
+    Marquee& marquee(const std::wstring ws, const int x_offset, const int len,
+                     const uint64_t delay_time = delay_step(1, 1)) {
         DWORD dwBytesWritten;
         super::y_offset = 0;
         super::ws = ws;
@@ -156,9 +158,11 @@ public:
             WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
 
             if (i % step == 0) {
-                if (delay(time).done) {
-                    return *this;
-                }
+                delay(time);
+            }
+
+            if (done) {
+                return *this;
             }
         }
         return *this;
@@ -183,16 +187,18 @@ public:
             WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
 
             if (i % step == 0) {
-                if (delay(time).done) {
-                    return *this;
-                }
+                delay(time);
+            }
+
+            if (done) {
+                return *this;
             }
         }
 
         return *this;
     }
 
-    Marquee& slide2(const std::wstring ws, const  int x_offset = 0, const uint64_t delay_time = delay_step(1, 1)) {
+    Marquee& slide2(const std::wstring ws, const int x_offset = 0, const uint64_t delay_time = delay_step(1, 1)) {
         DWORD dwBytesWritten;
         std::wstring old = super::ws;
         int old_x_offset = super::x_offset;
@@ -222,20 +228,18 @@ public:
             WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
 
             if (i % step == 0) {
-                if (delay(time).done) {
-                    return *this;
-                }
+                delay(time);
+            }
+
+            if (done) {
+                return *this;
             }
         }
 
         return *this;
     }
 
-    Marquee& flash(
-        const std::wstring ws, 
-        const int x_offset = 0, 
-        const uint64_t delay_time = delay_step(1, 1)
-    ) {
+    Marquee& flash(const std::wstring ws, const int x_offset = 0, const uint64_t delay_time = delay_step(1, 1)) {
         DWORD dwBytesWritten;
         super::ws = ws;
         super::x_offset = x_offset;
@@ -254,9 +258,11 @@ public:
             WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
 
             if (i % step == 0) {
-                if (delay(time).done) {
-                    return *this;
-                }
+                delay(time);
+            }
+
+            if (done) {
+                return *this;
             }
         }
 
@@ -295,9 +301,9 @@ int main() {
     MoveWindow(GetConsoleWindow(), rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, TRUE);
 
     int null;
-    //std::cin >> null;
+    std::cin >> null;
 
-    FILE* fp = fopen("unicode_16x16.bin", "rb+");
+    FILE* fp = fopen("mingliu7.03/mingliu_Fixedsys_Excelsior.bin", "rb+");
     fseek(fp, 0L, SEEK_END);
     int size = ftell(fp);
 
@@ -322,27 +328,17 @@ int main() {
     std::thread(listenForKeyboardEvents).detach();
 
     wchar_t wbuf[80];
-    std::wstring line = L"901";
-    //marquee.slide(line, 5);
-    int offset = count_size(line) + 5;
-
-
     while (1) {
-        marquee.slide2(L"你好").delay(700);
-        marquee.flash(L"206你娘").delay(700);
-    }
-}
-
-/*while(1) {
-            time_t     now = time(0);
-            tm  tstruct;
-            char       buf[80];
+        while (1) {
+            time_t now = time(0);
+            tm tstruct;
+            char buf[80];
             tstruct = *localtime(&now);
             strftime(buf, sizeof(buf), "%S", &tstruct);
             wcsftime(wbuf, sizeof(buf), L"%H:%M", &tstruct);
 
             std::wstring title = L"歡迎搭乘大順客運700路線";
-            if (marquee.marquee(title, width, -count_size(title)).done){
+            if (marquee.marquee(title, width, -count_size(title)).done) {
                 break;
             }
 
@@ -350,28 +346,21 @@ int main() {
                 break;
             }
         }
+        std::wstring chinese = L"崇德橋";
+        std::wstring english = L"Chongde Bridge";
 
         marquee.screen_clear().jump_to_here();
 
-        marquee.slide(L"下一站", (width / 2) - 48)
-            .delay(800)
-            .screen_clear()
-            .delay(100);
+        marquee.slide2(L"下一站", (width / 2) - 48, delay_step(5))
+               .delay(800);
 
-        std::wstring chinese = L"黎明福科路口";
-        std::wstring english = L"Liming-Fuke Intersection";
+        marquee.slide2(chinese, 0, delay_step(3))
+               .delay(800);
 
-        int begin = (width / 2) - count_size(chinese) / 2;
-        marquee.slide(chinese, begin)
-            .long_delay(60)
-            .delay(100);
+        marquee.slide2(english, 0, delay_step(3))
+            .delay(800);
 
-        int a = (9 - chinese.length());
-        std::wstring ans = chinese + std::wstring(a, L' ') + english;
-        marquee.marquee(ans + std::wstring(a, L' ') + chinese, begin, -count_size(ans + std::wstring(a, L' ')))
-               .long_delay(250);
-
-        marquee.slide2(wbuf, (width / 2) - 36)
-               .long_delay(60);
-
-        marquee.flash(std::wstring(5, L' '), (width / 2) - 36);*/
+        marquee.slide2(chinese, 0, delay_step(3))
+               .delay(3000);
+    }
+}
