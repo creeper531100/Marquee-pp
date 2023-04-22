@@ -5,6 +5,7 @@
 #include <string>
 #include <windows.h>
 #include <chrono>
+#include <functional>
 #include <thread>
 
 struct Pack {
@@ -35,6 +36,18 @@ void listenForKeyboardEvents() {
         trigger = GetAsyncKeyState(VK_SPACE);
         std::this_thread::sleep_for(std::chrono::milliseconds(800));
     }
+}
+
+constexpr int count_size(std::wstring_view show) {
+    int end = 0;
+    for (int i = 0; i < show.length(); i++) {
+        end += show[i] < 256 ? 16 : 32;
+    }
+    return end;
+}
+
+constexpr uint64_t delay_step(uint32_t step, uint32_t delay = 1) {
+    return (uint64_t)delay << 32 | step;
 }
 
 void draw_text(Pack* font, Param* param, wchar_t* screen) {
@@ -83,20 +96,20 @@ void draw_text(Pack* font, Param* param, wchar_t* screen) {
 class Marquee : public Param {
 public:
     using super = Param;
+    bool done = false;
 
-public:
+private:
     int width;
     int height;
     size_t screen_size;
-    bool done = false;
 
     wchar_t* screen;
     Pack* font;
     HANDLE hConsole;
+
 public:
     Marquee(int width, int height, wchar_t* screen, Pack* font, HANDLE hConsole) : width(width), height(height),
-        screen(screen), font(font), hConsole(hConsole)
-    {
+        screen(screen), font(font), hConsole(hConsole) {
         this->screen_size = width * height;
         super::screen_width = width;
     }
@@ -104,31 +117,7 @@ public:
     Marquee& screen_clear() {
         DWORD dwBytesWritten;
         memset(screen, 0, screen_size * sizeof(wchar_t));
-        WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
-        return *this;
-    }
-
-    Marquee& marquee(std::wstring ws, int x_offset, int len) {
-        DWORD dwBytesWritten;
-        super::y_offset = 0;
-        super::ws = ws;
-
-        super::row_begin = 0;
-        super::row_end = 16;
-        super::row_count = 0;
-
-        for (int i = x_offset; i >= len; i--) {
-            memset(screen, 0, screen_size * sizeof(wchar_t));
-            super::x_offset = i;
-
-            draw_text(font, this, screen);
-            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
-
-            if (delay(10).done) {
-                return *this;
-            }
-        }
-
+        WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
         return *this;
     }
 
@@ -142,17 +131,48 @@ public:
         super::x_offset = x_offset;
 
         draw_text(font, this, screen);
-        WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
+        WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
 
         return *this;
     }
 
-    Marquee& slide(std::wstring ws, int x_offset = 0) {
+    Marquee& marquee(const std::wstring ws, const int x_offset, const int len, const uint64_t delay_time = delay_step(1, 1)) {
+        DWORD dwBytesWritten;
+        super::y_offset = 0;
+        super::ws = ws;
+
+        super::row_begin = 0;
+        super::row_end = 16;
+        super::row_count = 0;
+
+        const uint32_t step = delay_time & 0xFFFFFFFF;
+        const uint32_t time = delay_time >> 32;
+
+        for (int i = x_offset; i >= len; i--) {
+            memset(screen, 0, screen_size * sizeof(wchar_t));
+            super::x_offset = i;
+
+            draw_text(font, this, screen);
+            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
+
+            if (i % step == 0) {
+                if (delay(time).done) {
+                    return *this;
+                }
+            }
+        }
+        return *this;
+    }
+
+    Marquee& slide(const std::wstring ws, const int x_offset = 0, const uint64_t delay_time = delay_step(1, 10)) {
         DWORD dwBytesWritten;
 
         super::ws = ws;
         super::x_offset = x_offset;
         super::row_end = 16;
+
+        const uint32_t step = delay_time & 0xFFFFFFFF;
+        const uint32_t time = delay_time >> 32;
 
         for (int i = 16; i >= 0; i--) {
             super::y_offset = i;
@@ -160,20 +180,25 @@ public:
             super::row_count = i;
 
             draw_text(font, this, screen);
-            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
+            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
 
-            if (delay(10).done) {
-                return *this;
+            if (i % step == 0) {
+                if (delay(time).done) {
+                    return *this;
+                }
             }
         }
 
         return *this;
     }
 
-    Marquee& slide2(std::wstring ws, int x_offset = 0) {
+    Marquee& slide2(const std::wstring ws, const  int x_offset = 0, const uint64_t delay_time = delay_step(1, 1)) {
         DWORD dwBytesWritten;
         std::wstring old = super::ws;
         int old_x_offset = super::x_offset;
+
+        const uint32_t step = delay_time & 0xFFFFFFFF;
+        const uint32_t time = delay_time >> 32;
 
         super::row_count = 0;
 
@@ -182,33 +207,35 @@ public:
             super::y_offset = i;
             super::row_count = -i;
             super::row_begin = 0;
-            super::row_end = 16 - i;
+            super::row_end = 17 - i;
             super::x_offset = old_x_offset;
             draw_text(font, this, screen);
 
             super::y_offset = 16 - i;
             super::row_count = 16 - i;
-            super::row_begin = super::row_end;
+            super::row_begin = super::row_end - 1;
             super::row_end = 16;
             super::ws = ws;
             super::x_offset = x_offset;
             draw_text(font, this, screen);
 
+            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
 
-            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
-            if(i % 3 == 0) {
-                delay(1);
-            }
-            
-            if (done) {
-                return *this;
+            if (i % step == 0) {
+                if (delay(time).done) {
+                    return *this;
+                }
             }
         }
 
         return *this;
     }
 
-    Marquee& flash(std::wstring ws, int x_offset = 0, void(*ptr)(Marquee*, Pack*, wchar_t*) = NULL) {
+    Marquee& flash(
+        const std::wstring ws, 
+        const int x_offset = 0, 
+        const uint64_t delay_time = delay_step(1, 1)
+    ) {
         DWORD dwBytesWritten;
         super::ws = ws;
         super::x_offset = x_offset;
@@ -216,21 +243,20 @@ public:
         super::row_begin = 0;
         super::row_count = 0;
 
+        const uint32_t step = delay_time & 0xFFFFFFFF;
+        const uint32_t time = delay_time >> 32;
+
         for (int i = 0; i <= 16; i++) {
             super::y_offset = i;
             super::row_end = i;
 
-            if(ptr != NULL) {
-                ptr(this, font, screen);
-            }
-            else {
-                draw_text(font, this, screen);
-            }
+            draw_text(font, this, screen);
+            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
 
-            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
-
-            if(delay(1).done) {
-                return *this;
+            if (i % step == 0) {
+                if (delay(time).done) {
+                    return *this;
+                }
             }
         }
 
@@ -263,16 +289,9 @@ public:
     }
 };
 
-int count_size(std::wstring show) {
-    int end = 0;
-    for (int i = 0; i < show.length(); i++) {
-        end += show[i] < 256 ? 16 : 32;
-    }
-    return end;
-}
 
 int main() {
-    RECT rect = { 0, 0, 1920, 320 };
+    RECT rect = {0, 0, 1920, 320};
     MoveWindow(GetConsoleWindow(), rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, TRUE);
 
     int null;
@@ -289,7 +308,7 @@ int main() {
     Pack* pack = (Pack*)buffer;
 
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-    CONSOLE_SCREEN_BUFFER_INFO console_buffer_info = { 0 };
+    CONSOLE_SCREEN_BUFFER_INFO console_buffer_info = {0};
     GetConsoleScreenBufferInfo(hConsole, &console_buffer_info);
 
     int width = console_buffer_info.srWindow.Right - console_buffer_info.srWindow.Left + 1;
@@ -304,60 +323,17 @@ int main() {
 
     wchar_t wbuf[80];
     std::wstring line = L"901";
-    marquee.slide(line, 5);
+    //marquee.slide(line, 5);
     int offset = count_size(line) + 5;
+
+
     while (1) {
-        marquee.glyph_width_factor = 2;
-        marquee.glyph_width_offset = 1;
-        marquee.flash(L"雙 十 公 車 ", offset).delay(700);
+        marquee.slide2(L"你好").delay(700);
+        marquee.flash(L"206你娘").delay(700);
+    }
+}
 
-        marquee.flash(L"", offset, [](Marquee* self, Pack* font, wchar_t* screen) {
-            int offset = self->x_offset;
-            self->x_offset = offset;
-            self->ws = L"豐原 - ";
-            self->glyph_width_factor = 2;
-            self->glyph_width_offset = 1;
-            draw_text(font, self, screen);
-
-            self->x_offset = offset + count_size(self->ws);
-            self->ws = L"明德高中";
-            self->glyph_width_factor = 1;
-            self->glyph_width_offset = 1;
-            draw_text(font, self, screen);
-            self->x_offset = offset;
-
-        }).delay(2500);
-
-        marquee.glyph_width_factor = 2;
-        marquee.glyph_width_offset = 1;
-
-        marquee.flash(L"豐東路-潭子", offset).delay(2500);
-
-        marquee.flash(L"", offset, [](Marquee* self, Pack* font, wchar_t* screen) {
-            int offset = self->x_offset;
-            self->x_offset = offset;
-            self->ws = L"舊社 - ";
-            self->glyph_width_factor = 2;
-            self->glyph_width_offset = 1;
-            draw_text(font, self, screen);
-
-            self->x_offset = offset + count_size(self->ws);
-            self->ws = L"新民高中";
-            self->glyph_width_factor = 1;
-            self->glyph_width_offset = 1;
-            draw_text(font, self, screen);
-            self->x_offset = offset;
-        }).delay(2500);
-
-        marquee.glyph_width_factor = 1;
-        marquee.glyph_width_offset = 1;
-        marquee.flash(L" 台中火車站 - 一中商圈", offset).delay(2500);
-
-        marquee.glyph_width_factor = 2;
-        marquee.glyph_width_offset = 1;
-        marquee.flash(L" 開車不超速 ", offset).delay(700);
-
-        /*while(1) {
+/*while(1) {
             time_t     now = time(0);
             tm  tstruct;
             char       buf[80];
@@ -399,5 +375,3 @@ int main() {
                .long_delay(60);
 
         marquee.flash(std::wstring(5, L' '), (width / 2) - 36);*/
-    }
-}
