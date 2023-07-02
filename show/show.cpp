@@ -1,100 +1,12 @@
 ﻿#define _CRT_SECURE_NO_WARNINGS
 #define _CRT_NON_CONFORMING_SWPRINTFS
+#include "tools.h"
 
 #include <iostream>
-#include <string>
-#include <windows.h>
-#include <chrono>
-#include <functional>
 #include <thread>
+#include <windows.h>
 
-struct Pack {
-    uint16_t font[16];
-};
-
-struct Param {
-    std::wstring ws; //字串
-    int screen_width; //緩衝區大小
-
-    int x_offset = 0; //文字在螢幕上的起始x座標
-    int y_offset = 0; //文字在螢幕上的起始y座標
-
-    int glyph_width_factor = 2; //字形寬度的倍數(數值越小越窄)
-    int glyph_width_offset = 2; //字形寬度的偏移量
-
-    wchar_t fill_char = L'█'; //文字填滿部分的符號
-    wchar_t background = L' '; //文字未填滿部分的背景符號
-
-    int row_begin = 0;
-    int row_end = 16;
-    int row_count = 0;
-};
-
-bool trigger = false;
-
-void listenForKeyboardEvents() {
-    while (true) {
-        trigger = GetAsyncKeyState(VK_SPACE);
-        std::this_thread::sleep_for(std::chrono::milliseconds(800));
-    }
-}
-
-constexpr int count_size(std::wstring_view show) {
-    int end = 0;
-    for (int i = 0; i < show.length(); i++) {
-        end += show[i] < 256 ? 16 : 32;
-    }
-    return end;
-}
-
-constexpr uint64_t delay_step(uint32_t step, uint32_t delay = 1) {
-    return (uint64_t)delay << 32 | step;
-}
-
-void draw_text(Pack* font, Param* param, wchar_t* screen) {
-    constexpr int glyph_height = 16;
-    const int glyph_width = 16 * param->glyph_width_factor;
-
-    int start = 0;
-
-    for (int i = 0; i < param->ws.length(); i++) {
-        bool is_half_width = false;
-        wchar_t& ch = param->ws[i];
-
-        int& row_begin = param->row_begin;
-        int& row_end = param->row_end;
-        int& row_count = param->row_count;
-
-        // 畫出一個字元
-        for (int row = row_begin; row < row_end; row++) {
-            for (int col = 0; col < glyph_width; col += param->glyph_width_offset) {
-                // 超出畫面寬度就不用繼續畫了
-                if (param->x_offset + (start + col) >= param->screen_width) {
-                    break;
-                }
-
-                //TODO
-                bool b = font[ch].font[row - row_count] & 0x8000 >> col / param->glyph_width_factor;
-                if (b && param->x_offset + col + start >= 0) {
-                    screen[param->x_offset + start + (row * param->screen_width + col)] = param->fill_char;
-                }
-                else {
-                    screen[param->x_offset + start + (row * param->screen_width + col)] = param->background;
-                }
-            }
-        }
-
-        for (int row = 0; row < glyph_height; row++) {
-            // 判斷是否為半形字元(字元另一半是空的)
-            is_half_width |= font[ch].font[row] & 0xFF;
-        }
-
-        // 計算下一個字元的起始位置
-        start += (is_half_width ? glyph_width : glyph_width / 2);
-    }
-}
-
-class Marquee : public Param {
+class Marquee : Param {
 public:
     using super = Param;
     bool done = false;
@@ -109,8 +21,9 @@ private:
     HANDLE hConsole;
 
 public:
-    Marquee(int width, int height, wchar_t* screen, Pack* font, HANDLE hConsole) : width(width), height(height),
-        screen(screen), font(font), hConsole(hConsole) {
+    Marquee(int width, int height, wchar_t* screen, Pack* font, HANDLE hConsole) :
+        width(width), height(height), screen(screen), font(font), hConsole(hConsole)
+    {
         this->screen_size = width * height;
         super::screen_width = width;
     }
@@ -118,44 +31,56 @@ public:
     Marquee& screen_clear() {
         DWORD dwBytesWritten;
         memset(screen, 0, screen_size * sizeof(wchar_t));
-        WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
+        WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
         return *this;
     }
 
-    Marquee& show(std::wstring ws, int x_offset) {
-        DWORD dwBytesWritten;
-        super::y_offset = 0;
-        super::ws = ws;
-        super::row_begin = 0;
-        super::row_end = 16;
-        super::row_count = 0;
-        super::x_offset = x_offset;
-
-        draw_text(font, this, screen);
-        WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
-
+    Marquee& screen_clear(Param* param) {
+        switch (param->screen_clear_method) {
+        case SaoFU::utils::TextClearMethod::ClearAllText:
+            param->x_begin = 0;
+            param->x_end = param->screen_width;
+            break;
+        case SaoFU::utils::TextClearMethod::ClearTextItself:
+            param->x_begin = param->x_offset;
+            param->x_end = SaoFU::count_size(param->ws);
+            break;
+        case SaoFU::utils::TextClearMethod::ClearTextBefore:
+            param->x_begin = 0;
+            param->x_end = SaoFU::count_size(param->ws) + param->x_offset;
+            break;
+        case SaoFU::utils::TextClearMethod::ClearTextAfter:
+            param->x_begin = param->x_offset;
+            param->x_end = param->screen_width - SaoFU::count_size(param->ws);
+            break;
+        }
         return *this;
     }
 
-    Marquee& marquee(const std::wstring ws, const int x_offset, const int len,
-                     const uint64_t delay_time = delay_step(1, 1)) {
+    //TODO 刷新偏移
+    /*
+     * ws
+     * x_offset
+     * x_end
+     * delay_time
+     */
+    Marquee& marquee(Param& param, const uint64_t delay_time = SaoFU::delay_step(1, 1))
+    {
         DWORD dwBytesWritten;
-        super::y_offset = 0;
-        super::ws = ws;
 
-        super::row_begin = 0;
-        super::row_end = 16;
-        super::row_count = 0;
+        param.y_begin = 0;
+        param.y_end = 16;
+        param.y_offset = 0;
 
         const uint32_t step = delay_time & 0xFFFFFFFF;
         const uint32_t time = delay_time >> 32;
 
-        for (int i = x_offset; i >= len; i--) {
+        for (int i = param.x_offset; i >= param.x_end; i--) {
             memset(screen, 0, screen_size * sizeof(wchar_t));
-            super::x_offset = i;
+            param.x_offset = i;
 
-            draw_text(font, this, screen);
-            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
+            SaoFU::draw_text(font, &param, screen);
+            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
 
             if (i % step == 0) {
                 delay(time);
@@ -168,23 +93,22 @@ public:
         return *this;
     }
 
-    Marquee& slide(const std::wstring ws, const int x_offset = 0, const uint64_t delay_time = delay_step(1, 10)) {
+    Marquee& slide(const std::wstring ws, const int x_offset = 0, const uint64_t delay_time = SaoFU::delay_step(1, 10)) {
         DWORD dwBytesWritten;
 
         super::ws = ws;
         super::x_offset = x_offset;
-        super::row_end = 16;
+        super::y_end = 16;
 
         const uint32_t step = delay_time & 0xFFFFFFFF;
         const uint32_t time = delay_time >> 32;
 
         for (int i = 16; i >= 0; i--) {
+            super::y_begin = i;
             super::y_offset = i;
-            super::row_begin = i;
-            super::row_count = i;
 
-            draw_text(font, this, screen);
-            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
+            SaoFU::draw_text(font, this, screen);
+            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
 
             if (i % step == 0) {
                 delay(time);
@@ -198,7 +122,7 @@ public:
         return *this;
     }
 
-    Marquee& slide2(const std::wstring ws, const int x_offset = 0, const uint64_t delay_time = delay_step(1, 1)) {
+    Marquee& slide2(const std::wstring ws, const int x_offset = 0, const uint64_t delay_time = SaoFU::delay_step(1, 1)) {
         DWORD dwBytesWritten;
         std::wstring old = super::ws;
         int old_x_offset = super::x_offset;
@@ -206,26 +130,26 @@ public:
         const uint32_t step = delay_time & 0xFFFFFFFF;
         const uint32_t time = delay_time >> 32;
 
-        super::row_count = 0;
+        super::y_offset = 0;
 
         for (int i = 0; i <= 16; i++) {
             super::ws = old;
-            super::y_offset = i;
-            super::row_count = -i;
-            super::row_begin = 0;
-            super::row_end = 17 - i;
             super::x_offset = old_x_offset;
-            draw_text(font, this, screen);
 
-            super::y_offset = 16 - i;
-            super::row_count = 16 - i;
-            super::row_begin = super::row_end - 1;
-            super::row_end = 16;
+            super::y_begin = 0;
+            super::y_end = 17 - i;
+            super::y_offset = -i;
+            SaoFU::draw_text(font, this, screen);
+
             super::ws = ws;
             super::x_offset = x_offset;
-            draw_text(font, this, screen);
 
-            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
+            super::y_begin = super::y_end - 1;
+            super::y_end = 16;
+            super::y_offset = 16 - i;
+            SaoFU::draw_text(font, this, screen);
+
+            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
 
             if (i % step == 0) {
                 delay(time);
@@ -239,23 +163,30 @@ public:
         return *this;
     }
 
-    Marquee& flash(const std::wstring ws, const int x_offset = 0, const uint64_t delay_time = delay_step(1, 1)) {
+    /*
+     *  所需參數說明
+     *  wstring ws          你要顯示的字串
+     *  int x_begin         x開始位置 
+     *  int x_end           x截止位置
+     *  int x_offset        x偏移 
+     *  uint64_t delay_time 休眠時間
+     */
+    Marquee& flash(Param &param, const uint64_t delay_time = SaoFU::delay_step(1, 1)) {
         DWORD dwBytesWritten;
-        super::ws = ws;
-        super::x_offset = x_offset;
-
-        super::row_begin = 0;
-        super::row_count = 0;
+        param.y_begin = 0;
+        param.y_offset = 0;
 
         const uint32_t step = delay_time & 0xFFFFFFFF;
         const uint32_t time = delay_time >> 32;
 
-        for (int i = 0; i <= 16; i++) {
-            super::y_offset = i;
-            super::row_end = i;
+        screen_clear(&param);
 
-            draw_text(font, this, screen);
-            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
+        for (int i = 0; i <= 16; i++) {
+            memset(screen + (width * i + param.x_begin), 0, param.x_end * sizeof(wchar_t));
+            param.y_end = i;
+
+            SaoFU::draw_text(font, &param, screen);
+            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
 
             if (i % step == 0) {
                 delay(time);
@@ -270,9 +201,9 @@ public:
     }
 
     Marquee& delay(int time) {
-        if (trigger == true || this->done == true) {
+        if (SaoFU::trigger == true || this->done == true) {
             this->done = true;
-            trigger = 0;
+            SaoFU::trigger = 0;
             return *this;
         }
 
@@ -297,11 +228,11 @@ public:
 
 
 int main() {
-    RECT rect = {0, 0, 1920, 320};
+    RECT rect = { 0, 0, 1920, 320 };
     MoveWindow(GetConsoleWindow(), rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, TRUE);
 
     int null;
-    std::cin >> null;
+    //std::cin >> null;
 
     FILE* fp = fopen("mingliu7.03/mingliu_Fixedsys_Excelsior.bin", "rb+");
     fseek(fp, 0L, SEEK_END);
@@ -314,7 +245,7 @@ int main() {
     Pack* pack = (Pack*)buffer;
 
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-    CONSOLE_SCREEN_BUFFER_INFO console_buffer_info = {0};
+    CONSOLE_SCREEN_BUFFER_INFO console_buffer_info = { 0 };
     GetConsoleScreenBufferInfo(hConsole, &console_buffer_info);
 
     int width = console_buffer_info.srWindow.Right - console_buffer_info.srWindow.Left + 1;
@@ -325,42 +256,34 @@ int main() {
     Marquee marquee(width, height, screen, pack, hConsole);
 
     marquee.screen_clear();
-    std::thread(listenForKeyboardEvents).detach();
+    std::thread(SaoFU::listenForKeyboardEvents).detach();
 
     wchar_t wbuf[80];
     while (1) {
         while (1) {
-            time_t now = time(0);
-            tm tstruct;
-            char buf[80];
-            tstruct = *localtime(&now);
-            strftime(buf, sizeof(buf), "%S", &tstruct);
-            wcsftime(wbuf, sizeof(buf), L"%H:%M", &tstruct);
+            std::wstring title = L"歡迎搭乘台中市公車";
 
-            std::wstring title = L"歡迎搭乘大順客運700路線";
-            if (marquee.marquee(title, width, -count_size(title)).done) {
-                break;
-            }
+            Param param2;
+            param2.screen_width = width;
+            param2.ws = title;
+            param2.x_offset = width;
+            param2.x_end = -SaoFU::count_size(title);
 
-            if (marquee.flash(wbuf, (width / 2) - 36).long_delay(150).done) {
+            if (marquee.marquee(param2).delay(100).done) {
                 break;
             }
         }
-        std::wstring chinese = L"崇德橋";
+
+        std::wstring chinese = L"台中科技大學";
         std::wstring english = L"Chongde Bridge";
 
         marquee.screen_clear().jump_to_here();
 
-        marquee.slide2(L"下一站", (width / 2) - 48, delay_step(5))
-               .delay(800);
+        marquee.slide(L"下一站", (width / 2) - 48)
+            .delay(800)
+            .screen_clear();
 
-        marquee.slide2(chinese, 0, delay_step(3))
-               .delay(800);
-
-        marquee.slide2(english, 0, delay_step(3))
+        marquee.slide(chinese, 0)
             .delay(800);
-
-        marquee.slide2(chinese, 0, delay_step(3))
-               .delay(3000);
     }
 }
