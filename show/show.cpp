@@ -1,5 +1,7 @@
 ﻿#define _CRT_SECURE_NO_WARNINGS
 #define _CRT_NON_CONFORMING_SWPRINTFS
+#include <fstream>
+
 #include "tools.h"
 
 #include <iostream>
@@ -9,6 +11,7 @@
 class Marquee {
 public:
     bool done = false;
+
 private:
     int width;
     int height;
@@ -20,15 +23,14 @@ private:
 
 public:
     Marquee(int width, int height, wchar_t* screen, Pack* font, HANDLE hConsole) :
-        width(width), height(height), screen(screen), font(font), hConsole(hConsole)
-    {
+        width(width), height(height), screen(screen), font(font), hConsole(hConsole) {
         this->screen_size = width * height;
     }
 
     Marquee& screen_clear() {
         DWORD dwBytesWritten;
         memset(screen, 0, screen_size * sizeof(wchar_t));
-        WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
+        WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
         return *this;
     }
 
@@ -73,7 +75,7 @@ public:
         region.first = x_begin;
         region.second = x_end;
 
-        if(clear_region) {
+        if (clear_region) {
             memset(screen + (width * index + x_begin), 0, x_end * sizeof(wchar_t));
         }
 
@@ -90,8 +92,7 @@ public:
      *  其他參數說明
      *  @param param uint64_t delay_time 休眠時間
      */
-    Marquee& marquee(Param& param, const uint64_t delay_time = SaoFU::delay_step(1, 1))
-    {
+    Marquee& marquee(Param& param, const uint64_t delay_time = SaoFU::delay_step(1, 1)) {
         DWORD dwBytesWritten;
 
         param.y_begin = 0;
@@ -106,7 +107,7 @@ public:
             param.x_offset = i;
 
             SaoFU::draw_text(font, &param, screen);
-            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
+            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
 
             if (i % step == 0) {
                 delay(time);
@@ -126,7 +127,7 @@ public:
      *  其他參數說明
      *  @param param uint64_t delay_time 休眠時間
      */
-    Marquee& slide(Param &param, const uint64_t delay_time = SaoFU::delay_step(1, 1)) {
+    Marquee& slide(Param& param, const uint64_t delay_time = SaoFU::delay_step(1, 1)) {
         DWORD dwBytesWritten;
 
         param.y_end = 16;
@@ -135,9 +136,10 @@ public:
         const uint32_t time = delay_time >> 32;
 
         for (int i = 0; i < 16; i++) {
-            for(int j = 0; j < 15; j++) {
+            for (int j = 0; j < 15; j++) {
                 auto region = clear_text_region(param, j, false);
-                memmove(screen + (width * j) + region.first, screen + (width * (j + 1)) + region.first, region.second * sizeof(wchar_t));
+                memmove(screen + (width * j) + region.first, screen + (width * (j + 1)) + region.first,
+                        region.second * sizeof(wchar_t));
                 memset(screen + ((15 - i) * width) + region.first, 0, region.second * sizeof(wchar_t));
             }
 
@@ -152,7 +154,7 @@ public:
 
             SaoFU::draw_text(font, &param, screen);
 
-            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
+            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
 
             if (i % step == 0) {
                 delay(time);
@@ -175,7 +177,7 @@ public:
      *  其他參數說明
      *  @param param uint64_t delay_time 休眠時間
      */
-    Marquee& flash(Param &param, const uint64_t delay_time = SaoFU::delay_step(1, 1)) {
+    Marquee& flash(Param& param, const uint64_t delay_time = SaoFU::delay_step(1, 1)) {
         DWORD dwBytesWritten;
         param.y_begin = 0;
         param.y_offset = 0;
@@ -183,13 +185,12 @@ public:
         const uint32_t step = delay_time & 0xFFFFFFFF;
         const uint32_t time = delay_time >> 32;
 
-
         for (int i = 0; i < 16; i++) {
             clear_text_region(param, i);
             param.y_end = i;
 
             SaoFU::draw_text(font, &param, screen);
-            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
+            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
 
             if (i % step == 0) {
                 delay(time);
@@ -204,9 +205,9 @@ public:
     }
 
     Marquee& delay(int time) {
-        if (SaoFU::trigger == true || this->done == true) {
+        if (SaoFU::g_trigger == true || this->done == true) {
             this->done = true;
-            SaoFU::trigger = 0;
+            SaoFU::g_trigger = 0;
             return *this;
         }
 
@@ -231,15 +232,47 @@ public:
 
 
 int main() {
-    //SetConsoleOutputCP(65001);
+    SetConsoleOutputCP(65001);
 
-    RECT rect = { 0, 0, 1920, 320 };
+    std::ifstream t("setting.json");
+    std::string str((std::istreambuf_iterator(t)), std::istreambuf_iterator<char>());
+
+    SAOFU_TRY({
+        SaoFU::g_setting = nlohmann::json::parse(str);
+    });
+
+    SaoFU::g_token = SaoFU::get_token();
+
+    SAOFU_TRY({
+        SaoFU::g_json = SaoFU::get_json(SaoFU::g_token, SaoFU::g_setting["url"]);
+    });
+
+    int i = 0;
+    for(auto& row : SaoFU::g_json) {
+        std::string PlateNumb = row["PlateNumb"];
+        int Direction = row["Direction"];
+
+        printf("(%02d) %-8s %s\n", i++, PlateNumb.c_str(), Direction ? u8"去程" : u8"回程");
+    }
+
+    printf(u8"選擇: ");
+    std::cin >> SaoFU::g_index;
+
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_FONT_INFOEX fontInfo;
+    fontInfo.cbSize = sizeof(CONSOLE_FONT_INFOEX);
+    GetCurrentConsoleFontEx(hConsole, FALSE, &fontInfo);
+
+    fontInfo.dwFontSize.Y = 14; // 设置字体的高度
+
+    SetCurrentConsoleFontEx(hConsole, FALSE, &fontInfo);
+
+    RECT rect = { 0, 0, 16 * 14 * 8 + 48, 32 * 7 + 64 };
     MoveWindow(GetConsoleWindow(), rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, TRUE);
 
-    int null;
-    std::cin >> null;
 
-    FILE* fp = fopen("mingliu7.03/mingliu_Fixedsys_Excelsior.bin", "rb+");
+    std::string font_path = SaoFU::g_setting["font_path"];
+    FILE* fp = fopen(font_path.c_str(), "rb+");
     fseek(fp, 0L, SEEK_END);
     int size = ftell(fp);
 
@@ -249,8 +282,7 @@ int main() {
     fclose(fp);
     Pack* pack = (Pack*)buffer;
 
-    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-    CONSOLE_SCREEN_BUFFER_INFO console_buffer_info = { 0 };
+    CONSOLE_SCREEN_BUFFER_INFO console_buffer_info = {0};
     GetConsoleScreenBufferInfo(hConsole, &console_buffer_info);
 
     int width = console_buffer_info.srWindow.Right - console_buffer_info.srWindow.Left + 1;
@@ -263,18 +295,13 @@ int main() {
     marquee.screen_clear();
     std::thread(SaoFU::listenForKeyboardEvents).detach();
 
-    wchar_t wbuf[80];
-
-    Param param2;
-    param2.screen_width = width;
-
-    std::string token = SaoFU::get_token();
-    nlohmann::json json = SaoFU::get_json(token, "https://tdx.transportdata.tw/api/basic/v2/Bus/StopOfRoute/City/Taichung/901?%24format=JSON");
-    int index = 38;
-
     while (1) {
         while (1) {
+            wchar_t wbuf[80];
             SaoFU::get_time(wbuf, L"%H:%M");
+
+            Param param2;
+            param2.screen_width = width;
             param2.ws = wbuf;
             param2.x_offset = (width / 2) - 36;
             param2.screen_clear_method = SaoFU::utils::TextClearMethod::ClearAllText;
@@ -292,50 +319,51 @@ int main() {
             }
         }
 
-        std::wstring chinese = SaoFU::utf8_to_utf16(json[0]["Stops"][index]["StopName"]["Zh_tw"]);
-        std::wstring english = SaoFU::utf8_to_utf16(json[0]["Stops"][index]["StopName"]["En"]);
-
-        index++;
+        std::wstring chinese = SaoFU::utf8_to_utf16(SaoFU::g_json[SaoFU::g_index]["StopName"]["Zh_tw"]);
+        std::wstring english = SaoFU::utf8_to_utf16(SaoFU::g_json[SaoFU::g_index]["StopName"]["En"]);
 
         marquee.screen_clear().jump_to_here();
 
-        param2.ws = L"下一站";
-        param2.x_offset = (width / 2) - 48;
-        param2.screen_clear_method = SaoFU::utils::TextClearMethod::ClearAll;
+        Param param;
+        param.screen_width = width;
+        param.ws = L"下一站";
+        param.x_offset = (width / 2) - 48;
+        param.screen_clear_method = SaoFU::utils::TextClearMethod::ClearAll;
 
-        marquee.slide(param2).long_delay(65).screen_clear();
+        marquee.slide(param).long_delay(65).screen_clear();
 
         if (SaoFU::count_size(chinese) < width && SaoFU::count_size(english) < width) {
-            param2.ws = chinese;
-            param2.x_offset = 0;
-            marquee.slide(param2).long_delay(70);
+            param.ws = chinese;
+            param.x_offset = 0;
+            marquee.slide(param).long_delay(65);
 
-            param2.ws = english;
-            marquee.slide(param2).long_delay(70);
+            param.ws = english;
+            marquee.slide(param).long_delay(65);
 
-            param2.ws = chinese;
-            marquee.slide(param2).long_delay(500);
+            param.ws = chinese;
+            marquee.slide(param).long_delay(500);
         }
         else if (SaoFU::count_size(chinese) < width) {
-            param2.ws = chinese;
-            param2.x_offset = 0;
+            param.ws = chinese;
+            param.x_offset = 0;
 
-            marquee.slide(param2).long_delay(100);
+            marquee.slide(param).long_delay(65);
 
-            param2.ws = chinese + SaoFU::count_space(SaoFU::count_size(chinese), width) + english + L' ';
-            param2.screen_width = width;
-            param2.x_offset = 0;
-            param2.x_end = -SaoFU::count_size(param2.ws);
-            param2.ws = param2.ws + chinese;
+            param.ws = chinese + SaoFU::count_space(SaoFU::count_size(chinese), width) + english + L' ';
+            param.screen_width = width;
+            param.x_offset = 0;
+            param.x_end = -SaoFU::count_size(param.ws);
+            param.ws = param.ws + chinese;
 
-            marquee.marquee(param2).long_delay(500);
+            marquee.marquee(param).long_delay(500);
         }
         else {
-            param2.x_offset = (width / 2) - 48;
-            param2.ws = L"下一站" + SaoFU::count_space(param2.x_offset + SaoFU::count_size(L"下一站"), width) + chinese + L'  ' + english + L'  ' + chinese;
-            param2.x_end = -SaoFU::count_size(param2.ws);
+            param.x_offset = (width / 2) - 48;
+            param.ws = L"下一站" + SaoFU::count_space(param.x_offset + SaoFU::count_size(L"下一站"), width) + chinese +
+                L'  ' + english + L'  ' + chinese;
+            param.x_end = -SaoFU::count_size(param.ws);
 
-            marquee.marquee(param2).long_delay(500);
+            marquee.marquee(param);
         }
     }
 }

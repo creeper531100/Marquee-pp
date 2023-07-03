@@ -58,7 +58,8 @@ public:
     }
 
     void init(std::string url) {
-        log = fopen("log.txt", "w");
+        std::string log_path = SaoFU::g_setting["curl_log"];
+        log = fopen(log_path.c_str(), "w");
         CURL_FAILED(curl_easy_setopt(curl, CURLOPT_STDERR, log));
         CURL_FAILED(curl_easy_setopt(curl, CURLOPT_URL, url.c_str()));
         CURL_FAILED(curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, my_write));
@@ -110,8 +111,8 @@ public:
 
 namespace SaoFU {
     std::string get_token() {
-        std::string client_id = "";
-        std::string client_secret = "";
+        std::string client_id = SaoFU::g_setting["client_id"];
+        std::string client_secret = SaoFU::g_setting["client_secret"];
 
         CUrlHandle curl;
         std::string data;
@@ -135,9 +136,17 @@ namespace SaoFU {
         return nlohmann::json::parse(curl.data);
     }
 
+    int old_sequence = 0;
     void listenForKeyboardEvents() {
         while (true) {
-            trigger = GetAsyncKeyState(VK_SPACE);
+            g_json = get_json(g_token, g_setting["url"]);
+           
+            int sequence = g_json[g_index]["StopSequence"];
+
+            g_trigger = sequence != old_sequence;
+
+            old_sequence = sequence;
+
             std::this_thread::sleep_for(std::chrono::milliseconds(800));
         }
     }
@@ -191,9 +200,7 @@ namespace SaoFU {
 
     void get_time(wchar_t* wbuf, const wchar_t* fmt) {
         time_t now = time(0);
-        tm tstruct;
-        tstruct = *localtime(&now);
-        wcsftime(wbuf, sizeof(wbuf), fmt, &tstruct);
+        wcsftime(wbuf, sizeof(wbuf), fmt, localtime(&now));
     }
 
     std::wstring utf8_to_utf16(const std::string& str) {
@@ -202,15 +209,40 @@ namespace SaoFU {
 
         size_t charsNeeded = ::MultiByteToWideChar(CP_UTF8, 0,
                                                    str.data(), (int)str.size(), NULL, 0);
-        if (charsNeeded == 0)
+        if (charsNeeded == 0) {
+            e_what(__LINE__, "Failed converting UTF-8 string to UTF-16", 15);
             throw std::runtime_error("Failed converting UTF-8 string to UTF-16");
+        }
 
         std::vector<wchar_t> buffer(charsNeeded);
         int charsConverted = ::MultiByteToWideChar(CP_UTF8, 0,
                                                    str.data(), (int)str.size(), &buffer[0], buffer.size());
-        if (charsConverted == 0)
+        if (charsConverted == 0) {
+            e_what(__LINE__, "Failed converting UTF-8 string to UTF-16", 15);
             throw std::runtime_error("Failed converting UTF-8 string to UTF-16");
+        }
 
         return std::wstring(&buffer[0], charsConverted);
+    }
+
+    HRESULT e_what(int line, const char* file, HRESULT hr) {
+        LPSTR p_msgbuf = nullptr;
+        DWORD msg_len = FormatMessageA(
+            FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+            NULL,
+            hr,
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+            (LPSTR)&p_msgbuf, 0, NULL
+        );
+
+        char buf[100] = { '\0' };
+        if (msg_len) {
+            sprintf(buf, "%s\n\"%s\"\n[line] %d\n[code] 0x%08X\n", p_msgbuf, file, line, hr);
+        }
+
+        MessageBoxA(0, buf, std::to_string(hr).c_str(), MB_ICONERROR);
+
+        LocalFree(p_msgbuf);
+        return hr;
     }
 }

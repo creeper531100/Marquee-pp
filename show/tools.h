@@ -8,8 +8,20 @@
 using Pack = uint16_t[16];
 struct Param;
 
+#define SAOFU_EXCEPTION(hr) SaoFU::e_what(__LINE__, __FILE__, hr)
+
+#define SAOFU_TRY(fn) try fn catch(std::exception &e) { SaoFU::e_what(__LINE__, e.what(), 2); }
+
 namespace SaoFU {
-    inline bool trigger = false;
+    inline bool g_trigger = false;
+    inline nlohmann::json g_setting;
+    inline nlohmann::json g_json;
+    inline int g_index = 0;
+    inline std::string g_token;
+
+}
+
+namespace SaoFU {
     void listenForKeyboardEvents();
     std::wstring count_space(int count_size, int width);
     void draw_text(Pack* font, Param* param, wchar_t* screen);
@@ -19,6 +31,8 @@ namespace SaoFU {
 
     std::string get_token();
     nlohmann::json get_json(std::string token, std::string url);
+
+    long e_what(int line, const char* file, long hr);
 
     constexpr int count_size(std::wstring_view show) {
         int end = 0;
@@ -67,3 +81,5 @@ struct Param {
 
     int screen_clear_method = SaoFU::utils::TextClearMethod::ClearAllText;
 };
+
+
