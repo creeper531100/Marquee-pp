@@ -5,6 +5,7 @@
 #include <string>
 #include <nlohmann/json.hpp>
 
+class CUrlHandle;
 using Pack = uint16_t[16];
 struct Param;
 
@@ -15,14 +16,10 @@ struct Param;
 namespace SaoFU {
     inline bool g_trigger = false;
     inline nlohmann::json g_setting;
-    inline nlohmann::json g_json;
-    inline int g_index = 0;
-    inline std::string g_token;
-
 }
 
 namespace SaoFU {
-    void listenForKeyboardEvents();
+    void listenForKeyboardEvents(std::string token, int index, nlohmann::json& json);
     std::wstring count_space(int count_size, int width);
     void draw_text(Pack* font, Param* param, wchar_t* screen);
 

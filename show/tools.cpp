@@ -1,4 +1,4 @@
-#include "tools.h"
+ï»¿#include "tools.h"
 
 #include <string>
 #include <thread>
@@ -43,28 +43,20 @@ class CUrlHandle {
 public:
     CURL* curl;
     SAOFU_CURL_EXCEPTION_INIT();
-    curl_slist* headers = NULL;
     FILE* log;
     std::string data;
-
+    curl_slist* headers = NULL;
 public:
     CUrlHandle() {
+        curl_global_init(CURL_GLOBAL_ALL);
         curl = curl_easy_init();
+        std::string log_path = SaoFU::g_setting["curl_log"];
+        log = fopen(log_path.c_str(), "w");
         CURL_FAILED(!curl);
     }
 
     ~CUrlHandle() {
         Release();
-    }
-
-    void init(std::string url) {
-        std::string log_path = SaoFU::g_setting["curl_log"];
-        log = fopen(log_path.c_str(), "w");
-        CURL_FAILED(curl_easy_setopt(curl, CURLOPT_STDERR, log));
-        CURL_FAILED(curl_easy_setopt(curl, CURLOPT_URL, url.c_str()));
-        CURL_FAILED(curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, my_write));
-        CURL_FAILED(curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L));
-        CURL_FAILED(curl_easy_setopt(curl, CURLOPT_WRITEDATA, &data));
     }
 
     void Release() {
@@ -87,13 +79,17 @@ public:
             curl_slist_free_all(headers);
             headers = NULL;
         }
-
         return *this;
     }
 
     CUrlHandle& urlpost(std::string url, std::string json_data = "") {
         CURL_FAILED(!curl);
-        init(url);
+
+        CURL_FAILED(curl_easy_setopt(curl, CURLOPT_STDERR, log));
+        CURL_FAILED(curl_easy_setopt(curl, CURLOPT_URL, url.c_str()));
+        CURL_FAILED(curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, my_write));
+        CURL_FAILED(curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L));
+        CURL_FAILED(curl_easy_setopt(curl, CURLOPT_WRITEDATA, &data));
 
         CURL_FAILED(curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers));
 
@@ -115,41 +111,49 @@ namespace SaoFU {
         std::string client_secret = SaoFU::g_setting["client_secret"];
 
         CUrlHandle curl;
-        std::string data;
 
         curl.urlpost("https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token",
                      "grant_type=client_credentials&client_id=" + client_id + "&client_secret=" + client_secret);
 
-        nlohmann::json api_token = nlohmann::json::parse(curl.data);
+        std::string data = curl.data;
+        
+        nlohmann::json api_token = nlohmann::json::parse(data);
         return api_token["access_token"];
     }
 
     nlohmann::json get_json(std::string token, std::string url) {
-        CUrlHandle curl;
-        curl.set_header({
+        CUrlHandle *curl = new CUrlHandle;
+        curl->set_header({
                 "Content-Type: application/json",
                 ("Authorization: Bearer " + token).c_str()
             });
 
-        curl.urlpost(url);
+        curl->urlpost(url);
+        std::string data = curl->data;
 
-        return nlohmann::json::parse(curl.data);
+        delete curl;
+        return nlohmann::json::parse(data);
     }
 
     int old_sequence = 0;
-    void listenForKeyboardEvents() {
+    void listenForKeyboardEvents(std::string token, int index, nlohmann::json& json) {
         while (true) {
-            g_json = get_json(g_token, g_setting["url"]);
-           
-            int sequence = g_json[g_index]["StopSequence"];
+            try {
+                json = get_json(token, g_setting["url"]);
 
-            g_trigger = sequence != old_sequence;
+                int sequence = json[index]["StopSequence"];
 
-            old_sequence = sequence;
+                g_trigger = sequence != old_sequence;
 
+                old_sequence = sequence;
+            }
+            catch (...) {
+                
+            }
             std::this_thread::sleep_for(std::chrono::milliseconds(800));
         }
     }
+
 
     std::wstring count_space(int count_size, int width) {
         return std::wstring(((width - count_size) / 16) + 1, L' ');
@@ -169,10 +173,10 @@ namespace SaoFU {
             int& row_end = param->y_end;
             int& row_count = param->y_offset;
 
-            // µe¥X¤@­Ó¦r¤¸
+            // ç•«å‡ºä¸€å€‹å­—å…ƒ
             for (int row = row_begin; row < row_end; row++) {
                 for (int col = 0; col < glyph_width; col += param->glyph_width_offset) {
-                    // ¶W¥Xµe­±¼e«×´N¤£¥ÎÄ~Äòµe¤F
+                    // è¶…å‡ºç•«é¢å¯¬åº¦å°±ä¸ç”¨ç¹¼çºŒç•«äº†
                     if (param->x_offset + (start + col) >= param->screen_width) {
                         break;
                     }
@@ -189,11 +193,11 @@ namespace SaoFU {
             }
 
             for (int row = 0; row < glyph_height; row++) {
-                // §PÂ_¬O§_¬°¥b§Î¦r¤¸(¦r¤¸¥t¤@¥b¬OªÅªº)
+                // åˆ¤æ–·æ˜¯å¦ç‚ºåŠå½¢å­—å…ƒ(å­—å…ƒå¦ä¸€åŠæ˜¯ç©ºçš„)
                 is_half_width |= font[ch][row] & 0xFF;
             }
 
-            // ­pºâ¤U¤@­Ó¦r¤¸ªº°_©l¦ì¸m
+            // è¨ˆç®—ä¸‹ä¸€å€‹å­—å…ƒçš„èµ·å§‹ä½ç½®
             start += (is_half_width ? glyph_width : glyph_width / 2);
         }
     }
@@ -235,7 +239,7 @@ namespace SaoFU {
             (LPSTR)&p_msgbuf, 0, NULL
         );
 
-        char buf[100] = { '\0' };
+        char buf[100] = {'\0'};
         if (msg_len) {
             sprintf(buf, "%s\n\"%s\"\n[line] %d\n[code] 0x%08X\n", p_msgbuf, file, line, hr);
         }

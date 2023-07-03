@@ -237,18 +237,13 @@ int main() {
     std::ifstream t("setting.json");
     std::string str((std::istreambuf_iterator(t)), std::istreambuf_iterator<char>());
 
-    SAOFU_TRY({
-        SaoFU::g_setting = nlohmann::json::parse(str);
-    });
+    SaoFU::g_setting = nlohmann::json::parse(str);
 
-    SaoFU::g_token = SaoFU::get_token();
-
-    SAOFU_TRY({
-        SaoFU::g_json = SaoFU::get_json(SaoFU::g_token, SaoFU::g_setting["url"]);
-    });
+    std::string token = SaoFU::get_token();
+    nlohmann::json json = SaoFU::get_json(token, SaoFU::g_setting["url"]);
 
     int i = 0;
-    for(auto& row : SaoFU::g_json) {
+    for(auto& row : json) {
         std::string PlateNumb = row["PlateNumb"];
         int Direction = row["Direction"];
 
@@ -256,7 +251,9 @@ int main() {
     }
 
     printf(u8"選擇: ");
-    std::cin >> SaoFU::g_index;
+
+    int index = 0;
+    std::cin >> index;
 
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     CONSOLE_FONT_INFOEX fontInfo;
@@ -291,9 +288,9 @@ int main() {
 
     wchar_t* screen = new wchar_t[screen_size];
     Marquee marquee(width, height, screen, pack, hConsole);
-
     marquee.screen_clear();
-    std::thread(SaoFU::listenForKeyboardEvents).detach();
+
+    std::thread(SaoFU::listenForKeyboardEvents, token, index, std::ref(json)).detach();
 
     while (1) {
         while (1) {
@@ -319,8 +316,12 @@ int main() {
             }
         }
 
-        std::wstring chinese = SaoFU::utf8_to_utf16(SaoFU::g_json[SaoFU::g_index]["StopName"]["Zh_tw"]);
-        std::wstring english = SaoFU::utf8_to_utf16(SaoFU::g_json[SaoFU::g_index]["StopName"]["En"]);
+        std::wstring chinese = SaoFU::utf8_to_utf16(json[index]["StopName"]["Zh_tw"]);
+        std::wstring english = SaoFU::utf8_to_utf16(json[index]["StopName"]["En"]);
+
+        //std::wstring chinese = L"大順";
+        //std::wstring english = L"Dashun";
+
 
         marquee.screen_clear().jump_to_here();
 
