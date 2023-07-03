@@ -48,7 +48,7 @@ public:
     curl_slist* headers = NULL;
 public:
     CUrlHandle() {
-        curl_global_init(CURL_GLOBAL_ALL);
+        //curl_global_init(CURL_GLOBAL_ALL);
         curl = curl_easy_init();
         std::string log_path = SaoFU::g_setting["curl_log"];
         log = fopen(log_path.c_str(), "w");
