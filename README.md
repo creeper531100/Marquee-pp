@@ -1,4 +1,6 @@
 # Marquee-pp
+![image](https://github.com/creeper531100/Marquee-pp/image/title.png)
+
 8字顯示器模擬器  
 
 這是一個模擬256x32文字顯示器的程式。它可以模擬一個簡單的8字顯示器界面。請注意，這不是一個開箱即用的程式，需要一定的技術去編譯和運行。  
