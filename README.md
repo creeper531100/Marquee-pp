@@ -28,7 +28,7 @@
 	"font_path": "mingliu7.03/mingliu_Fixedsys_Excelsior.bin", // 字型路徑
 	"client_id": "xxxxxxxx-xxxxxxx-xxxx-xxxx", //你的 TDX 帳號
 	"client_secret": "xxxxxxxx-xxxxxxx-xxxx-xxxx", //你的 TDX 密碼
-	"url" : "https://tdx.transportdata.tw/api/basic/v2/Bus/RealTimeNearStop/City/Taichung/?%24format=JSON" //你要連線的json，詳細請參照 https://tdx.transportdata.tw/
+	"url" : "https://tdx.transportdata.tw/api/basic/v2/Bus/RealTimeNearStop/City/Taichung/?%24format=JSON" //你要連線的公車路線，詳細請參照 https://tdx.transportdata.tw/
 }
 ```
 在命令行中執行以下指令來編譯程式  
