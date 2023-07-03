@@ -21,6 +21,16 @@
 - curl
 - nlohmann json
 
+# 個人化設定 Setting
+若你想對路線或是字型的路徑進行設定，你可以建立`setting.json`進行設定  
+```javascript
+{
+	"font_path": "mingliu7.03/mingliu_Fixedsys_Excelsior.bin", // 字型路徑
+	"client_id": "xxxxxxxx-xxxxxxx-xxxx-xxxx", //你的 TDX 帳號
+	"client_secret": "xxxxxxxx-xxxxxxx-xxxx-xxxx", //你的 TDX 密碼
+	"url" : "https://tdx.transportdata.tw/api/basic/v2/Bus/RealTimeNearStop/City/Taichung/?%24format=JSON" //你要連線的json，詳細請參照 https://tdx.transportdata.tw/
+}
+```
 在命令行中執行以下指令來編譯程式  
 請根據您的系統和編譯環境，選擇合適的編譯指令。
 
