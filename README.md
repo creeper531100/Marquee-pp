@@ -10,12 +10,12 @@
 ### font test  
 ```font test 是用於將 TrueType 字體（ttf）文件轉換為二進制檔案的工具。這個二進制檔案可以被用作跑馬燈文字在顯示器上顯示。```
   
-### [show](https://github.com/creeper531100/Marquee-pp/blob/master/show/show.cpp) 库  
+### [show](https://github.com/creeper531100/Marquee-pp/blob/master/show/show.cpp)  
 ```show 主要的跑馬燈程式庫。它包含了顯示器的顯示內容的設定，以及跑馬燈程式的運行。```
 
 ### 安裝依賴庫  
 
-在編譯和運行本程式之前，請確保您的系統已經安裝了以下庫：
+在編譯和運行本程式之前，請確保您的系統已經安裝了以下依賴庫：
 
 - ft2build
 - curl
