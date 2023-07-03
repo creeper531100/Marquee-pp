@@ -1,5 +1,5 @@
 # Marquee-pp
-[![image](https://github.com/creeper531100/Marquee-pp/image/title.png)](https://github.com/creeper531100/Marquee-pp/blob/master/image/title.png)
+![image](https://github.com/creeper531100/Marquee-pp/blob/master/image/title.png)]
 
 8字顯示器模擬器  
 
