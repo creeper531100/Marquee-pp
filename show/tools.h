@@ -27,7 +27,7 @@ namespace SaoFU {
     std::wstring utf8_to_utf16(const std::string& str);
 
     std::string get_token();
-    nlohmann::json get_json(std::string token, std::string url);
+    std::string get_data(std::string token, std::string url);
 
     long e_what(int line, const char* file, long hr);
 

@@ -1,12 +1,14 @@
 ﻿#define _CRT_SECURE_NO_WARNINGS
 #define _CRT_NON_CONFORMING_SWPRINTFS
 #include <fstream>
+#include <future>
 
 #include "tools.h"
 
 #include <iostream>
 #include <thread>
 #include <windows.h>
+#include <curl/curl.h>
 
 class Marquee {
 public:
@@ -240,7 +242,7 @@ int main() {
     SaoFU::g_setting = nlohmann::json::parse(str);
 
     std::string token = SaoFU::get_token();
-    nlohmann::json json = SaoFU::get_json(token, SaoFU::g_setting["url"]);
+    nlohmann::json json = nlohmann::json::parse(SaoFU::get_data(token, SaoFU::g_setting["url"]));
 
     int i = 0;
     for(auto& row : json) {
@@ -290,6 +292,7 @@ int main() {
     Marquee marquee(width, height, screen, pack, hConsole);
     marquee.screen_clear();
 
+    curl_global_init(CURL_GLOBAL_ALL);
     std::thread(SaoFU::listenForKeyboardEvents, token, index, std::ref(json)).detach();
 
     while (1) {
@@ -367,4 +370,5 @@ int main() {
             marquee.marquee(param);
         }
     }
+    curl_global_cleanup();
 }

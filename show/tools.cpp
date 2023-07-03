@@ -11,26 +11,7 @@
 #pragma comment(lib, "ws2_32.lib")
 #define _CRT_SECURE_NO_WARNINGS
 
-#include <iostream>
 #include <curl/curl.h>
-
-#define SAOFU_CURL_EXCEPTION_INIT() \
-    CURLcode _hr = CURLcode::CURLE_OK
-
-#define CURL_FAILED(RES) \
-    if (_hr = (CURLcode)RES) { \
-        fprintf(stderr, "curl_easy_perform() failed: %s , %d\n",  curl_easy_strerror(_hr), __LINE__);\
-        MessageBoxA(0, curl_easy_strerror(_hr), 0, MB_ICONERROR); \
-        throw (CURLcode)_hr; \
-    }
-
-#define CURL_FAILED_B(RES) \
-    if (_hr = (CURLcode)RES) { \
-        fprintf(stderr, "curl_easy_perform() failed: %s , %d\n",  curl_easy_strerror(_hr), __LINE__);\
-        MessageBoxA(0, curl_easy_strerror(_hr), 0, MB_ICONERROR); \
-        break; \
-    }
-
 
 size_t my_write(void* buf, size_t size, size_t nmemb, void* param) {
     std::string* text = (std::string*)param;
@@ -39,118 +20,72 @@ size_t my_write(void* buf, size_t size, size_t nmemb, void* param) {
     return totalsize;
 }
 
-class CUrlHandle {
-public:
-    CURL* curl;
-    SAOFU_CURL_EXCEPTION_INIT();
-    FILE* log;
-    std::string data;
-    curl_slist* headers = NULL;
-public:
-    CUrlHandle() {
-        //curl_global_init(CURL_GLOBAL_ALL);
-        curl = curl_easy_init();
-        std::string log_path = SaoFU::g_setting["curl_log"];
-        log = fopen(log_path.c_str(), "w");
-        CURL_FAILED(!curl);
-    }
-
-    ~CUrlHandle() {
-        Release();
-    }
-
-    void Release() {
-        header_clear();
-        curl_easy_cleanup(curl);
-        fclose(log);
-    }
-
-    CUrlHandle& set_header(std::vector<std::string> opts) {
-        for (auto row : opts) {
-            headers = curl_slist_append(headers, row.c_str());
-            CURL_FAILED(!headers);
-        }
-
-        return *this;
-    }
-
-    CUrlHandle& header_clear() {
-        if (headers != NULL) {
-            curl_slist_free_all(headers);
-            headers = NULL;
-        }
-        return *this;
-    }
-
-    CUrlHandle& urlpost(std::string url, std::string json_data = "") {
-        CURL_FAILED(!curl);
-
-        CURL_FAILED(curl_easy_setopt(curl, CURLOPT_STDERR, log));
-        CURL_FAILED(curl_easy_setopt(curl, CURLOPT_URL, url.c_str()));
-        CURL_FAILED(curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, my_write));
-        CURL_FAILED(curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L));
-        CURL_FAILED(curl_easy_setopt(curl, CURLOPT_WRITEDATA, &data));
-
-        CURL_FAILED(curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers));
-
-        if (!json_data.empty())
-            CURL_FAILED(curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_data.c_str()));
-
-        CURL_FAILED(curl_easy_perform(curl));
-
-        header_clear();
-        curl_easy_reset(curl);
-
-        return *this;
-    }
-};
-
 namespace SaoFU {
     std::string get_token() {
         std::string client_id = SaoFU::g_setting["client_id"];
         std::string client_secret = SaoFU::g_setting["client_secret"];
+        std::string data = "grant_type=client_credentials&client_id=" + client_id + "&client_secret=" + client_secret;
 
-        CUrlHandle curl;
+        CURL* curl = curl_easy_init();
+        std::string responseBuffer = "";
 
-        curl.urlpost("https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token",
-                     "grant_type=client_credentials&client_id=" + client_id + "&client_secret=" + client_secret);
+        if (!curl) {
+            SAOFU_EXCEPTION(20);
+        }
 
-        std::string data = curl.data;
-        
-        nlohmann::json api_token = nlohmann::json::parse(data);
+        curl_easy_setopt(curl, CURLOPT_URL, "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token");
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, my_write);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseBuffer);
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.c_str());
+
+        curl_easy_perform(curl);
+        curl_easy_cleanup(curl);
+
+        nlohmann::json api_token = nlohmann::json::parse(responseBuffer);
         return api_token["access_token"];
     }
 
-    nlohmann::json get_json(std::string token, std::string url) {
-        CUrlHandle *curl = new CUrlHandle;
-        curl->set_header({
-                "Content-Type: application/json",
-                ("Authorization: Bearer " + token).c_str()
-            });
+    std::string get_data(std::string token, std::string url) {
+        CURL* curl = curl_easy_init();
+        curl_slist* headers = NULL;
+        std::string responseBuffer = "";
 
-        curl->urlpost(url);
-        std::string data = curl->data;
+        if (!curl) {
+            SAOFU_EXCEPTION(20);
+        }
 
-        delete curl;
-        return nlohmann::json::parse(data);
+        headers = curl_slist_append(headers, "Content-Type: application/json");
+        headers = curl_slist_append(headers, ("Authorization: Bearer " + token).c_str());
+
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, my_write);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseBuffer);
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+        curl_easy_perform(curl);
+
+        curl_easy_cleanup(curl);
+        curl_slist_free_all(headers);
+
+        return responseBuffer;
     }
 
     int old_sequence = 0;
     void listenForKeyboardEvents(std::string token, int index, nlohmann::json& json) {
         while (true) {
             try {
-                json = get_json(token, g_setting["url"]);
+                std::string str = get_data(token, g_setting["url"]);
 
+                json = nlohmann::json::parse(str);
                 int sequence = json[index]["StopSequence"];
 
                 g_trigger = sequence != old_sequence;
 
                 old_sequence = sequence;
             }
-            catch (...) {
-                
+            catch (std::exception& e) {
+                MessageBoxA(0, e.what(), 0, 0);
             }
-            std::this_thread::sleep_for(std::chrono::milliseconds(800));
+            std::this_thread::sleep_for(std::chrono::seconds(2));
         }
     }
 
