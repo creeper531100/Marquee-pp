@@ -269,7 +269,6 @@ int main() {
     RECT rect = { 0, 0, 16 * 14 * 8 + 48, 32 * 7 + 64 };
     MoveWindow(GetConsoleWindow(), rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, TRUE);
 
-
     std::string font_path = SaoFU::g_setting["font_path"];
     FILE* fp = fopen(font_path.c_str(), "rb+");
     fseek(fp, 0L, SEEK_END);
@@ -319,14 +318,10 @@ int main() {
             }
         }
 
+        marquee.screen_clear().jump_to_here();
+
         std::wstring chinese = SaoFU::utf8_to_utf16(json[index]["StopName"]["Zh_tw"]);
         std::wstring english = SaoFU::utf8_to_utf16(json[index]["StopName"]["En"]);
-
-        //std::wstring chinese = L"大順";
-        //std::wstring english = L"Dashun";
-
-
-        marquee.screen_clear().jump_to_here();
 
         Param param;
         param.screen_width = width;
