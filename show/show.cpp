@@ -308,7 +308,8 @@ int main() {
     curl_global_init(CURL_GLOBAL_ALL);
     std::thread(SaoFU::listenForKeyboardEvents, token, PlateNumb, std::ref(json)).detach();
 
-    //nlohmann::json DisplayStopOfRouteUrl = nlohmann::json::parse(SaoFU::get_data(token, SaoFU::g_setting["DisplayStopOfRouteUrl"]));
+    bool is_first_run = true;
+    nlohmann::json DisplayStopOfRouteUrl = nlohmann::json::parse(SaoFU::get_data(token, SaoFU::g_setting["DisplayStopOfRouteUrl"]));
     while (1) {
         while (1) {
             wchar_t wbuf[80];
@@ -321,7 +322,7 @@ int main() {
             param2.x_offset = width;
             param2.x_end = -SaoFU::count_size(param2.ws);
 
-            if (marquee.marquee(param2).delay(100).done) {
+            if (marquee.screen_clear().long_delay(30).marquee(param2).delay(100).done) {
                 break;
             }
 
@@ -359,6 +360,26 @@ int main() {
                     break;
                 }
             }
+            auto stops = SaoFU::query_stops(DisplayStopOfRouteUrl, RouteName, Direction);
+
+            /*std::wstring next = SaoFU::utf8_to_utf16(stops[sequence]["StopName"]["Zh_tw"]);
+            param2.ws += SaoFU::count_space(SaoFU::count_size(param2.ws), width) + L"下一站: " + next;
+            param2.screen_width = width;
+            param2.x_offset = 0;
+            param2.x_end = -SaoFU::count_size(param2.ws);
+
+            marquee.marquee(param2);*/
+
+            param2.x_end = 0;
+            param2.ws = L"本車開往";
+            if (marquee.screen_clear().slide(param2).long_delay(90).done) {
+                break;
+            }
+
+            param2.ws = SaoFU::utf8_to_utf16(stops[stops.size() - 1]["StopName"]["Zh_tw"]);
+            if (marquee.screen_clear().slide(param2).long_delay(90).done) {
+                break;
+            }
 
             //std::wstring next = SaoFU::utf8_to_utf16(SaoFU::query_stops(DisplayStopOfRouteUrl, RouteName, Direction, sequence));
         }
@@ -374,6 +395,11 @@ int main() {
         std::wstring route = SaoFU::utf8_to_utf16(json[index]["RouteName"]["Zh_tw"]);
 
         SetConsoleTitle((route + L" " + plate + L" " + chinese + L" " + english).c_str());
+
+        if (is_first_run) {
+            is_first_run = false;
+            continue;
+        }
 
         Param param;
         param.screen_width = width;

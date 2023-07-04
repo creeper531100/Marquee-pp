@@ -20,7 +20,7 @@ namespace SaoFU {
 
 namespace SaoFU {
     int query_plate_numb(nlohmann::json& json, std::string plate_numb);
-    std::string query_stops(nlohmann::json& DisplayStopOfRouteUrl, std::string RouteName, int Direction, int sequence);
+    nlohmann::json query_stops(nlohmann::json& DisplayStopOfRouteUrl, std::string RouteName, int Direction);
 
     void listenForKeyboardEvents(std::string token, std::string plate_numb, nlohmann::json& json);
     std::wstring count_space(int count_size, int width);

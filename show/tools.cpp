@@ -77,18 +77,13 @@ namespace SaoFU {
         }
     }
 
-    std::string query_stops(nlohmann::json& DisplayStopOfRouteUrl, std::string RouteName, int Direction, int sequence) {
+    nlohmann::json query_stops(nlohmann::json& DisplayStopOfRouteUrl, std::string RouteName, int Direction) {
         for (auto& row : DisplayStopOfRouteUrl) {
-            if (sequence > row["Stops"][sequence]) {
-                return u8"終點站";
-            }
-
             if (row["RouteName"]["Zh_tw"] == RouteName && row["Direction"] == Direction) {
-                return row["Stops"][sequence]["StopName"]["Zh_tw"];
+                return row["Stops"];
             }
         }
-
-        return u8"(???)";
+        return u8"{}";
     }
 
     int old_sequence = 0;
