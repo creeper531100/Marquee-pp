@@ -234,6 +234,9 @@ public:
 
 
 int main() {
+    RECT rect2 = { 0, 0, 16 * 14 * 8 + 48, 32 * 7 + 64 };
+    MoveWindow(GetConsoleWindow(), rect2.left, rect2.top, rect2.right - rect2.left, rect2.bottom - rect2.top, TRUE);
+
     SetConsoleOutputCP(65001);
 
     std::ifstream t("setting.json");
@@ -305,7 +308,7 @@ int main() {
     curl_global_init(CURL_GLOBAL_ALL);
     std::thread(SaoFU::listenForKeyboardEvents, token, PlateNumb, std::ref(json)).detach();
 
-    nlohmann::json DisplayStopOfRouteUrl = nlohmann::json::parse(SaoFU::get_data(token, SaoFU::g_setting["DisplayStopOfRouteUrl"]));
+    //nlohmann::json DisplayStopOfRouteUrl = nlohmann::json::parse(SaoFU::get_data(token, SaoFU::g_setting["DisplayStopOfRouteUrl"]));
     while (1) {
         while (1) {
             wchar_t wbuf[80];
@@ -313,23 +316,30 @@ int main() {
 
             Param param2;
             param2.screen_width = width;
+
+            param2.ws = L"歡迎搭乘" + SaoFU::utf8_to_utf16(RouteName) + L"路市區公車";
+            param2.x_offset = width;
+            param2.x_end = -SaoFU::count_size(param2.ws);
+
+            if (marquee.marquee(param2).delay(100).done) {
+                break;
+            }
+
             param2.ws = wbuf;
             param2.x_offset = (width / 2) - 36;
             param2.screen_clear_method = SaoFU::utils::TextClearMethod::ClearAllText;
 
-            if (marquee.flash(param2).long_delay(150).done) {
+            if (marquee.flash(param2).long_delay(120).done) {
                 break;
             }
 
             int sequence = json[index]["StopSequence"];
             std::wstring now  = SaoFU::utf8_to_utf16(json[index]["StopName"]["Zh_tw"]);
-            std::wstring next = SaoFU::utf8_to_utf16(SaoFU::query_stops(DisplayStopOfRouteUrl, RouteName, Direction, sequence));
-
-            now = now.substr(0, 3);
-            next = next.substr(0, 7 - now.length());
+            
+            now = now.substr(0, 5);
 
             param2.x_offset = 0;
-            param2.ws = now + L"  " + next;
+            param2.ws = L"本站: " + now;
 
             if (marquee.slide(param2).long_delay(30).done) {
                 break;
@@ -337,27 +347,20 @@ int main() {
 
             for (int i = 0; i < 2; i++) {
                 param2.x_end = 0;
-                param2.ws = now + L">>" + next;
+                param2.ws = L"本站: ";
 
                 if (marquee.screen_clear().marquee(param2).long_delay(30).done) {
                     break;
                 }
 
-                param2.ws = now + L"  " + next;
+                param2.ws = L"本站: " + now;
 
                 if (marquee.screen_clear().marquee(param2).long_delay(30).done) {
                     break;
                 }
             }
 
-            param2.ws = L"歡迎搭乘台中市公車";
-            param2.x_offset = width;
-            param2.x_end = -SaoFU::count_size(param2.ws);
-            
-            if (marquee.marquee(param2).delay(100).done) {
-                break;
-            }
-
+            //std::wstring next = SaoFU::utf8_to_utf16(SaoFU::query_stops(DisplayStopOfRouteUrl, RouteName, Direction, sequence));
         }
 
         marquee.screen_clear().jump_to_here();

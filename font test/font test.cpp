@@ -1,242 +1,105 @@
 ﻿#define _CRT_SECURE_NO_WARNINGS
-#include <bitset>
-#include <cstdint>
-#include <ft2build.h>
-#include <iostream>
-#include <ostream>
-#include <Windows.h>
 
+#include <cstdint>
+#include <stdio.h>
 #include <ft2build.h>
+#include <bitset>
 #include FT_FREETYPE_H
 
-#define FONT_SIZE 16
+#define BITMAP_WIDTH 16
+#define BITMAP_HEIGHT 16
 
-#define printf(fmt,...) (void)0
-
-static int g_index = 0;
-
-void set_bit_value(int value, char font_buf[32], int font_size) {
-    g_index %= (font_size * font_size);
-    int byte_index = g_index / 8;
-    int bit_index = g_index % 8;
-    bit_index = 7 - bit_index;
-    font_buf[byte_index] &= ~(1 << bit_index);
-    font_buf[byte_index] |= (value << bit_index);
-    g_index++;
-}
-
-
-static FT_Library library;
-static FT_Face face;
-
-int freeType_init(const char* ttf_path, int font_size) {
-    int error;
-    error = FT_Init_FreeType(&library);
-    if (error) {
-        printf("can not init free type library!\n");
-        return 0;
+void draw(wchar_t character, unsigned char* buffer) {
+    FT_Library library;
+    if (FT_Init_FreeType(&library)) {
+        fprintf(stderr, "Failed to initialize FreeType library\n");
+        return;
     }
 
-    error = FT_New_Face(library, ttf_path, 0, &face);
-    if (error) {
-        printf("create new face falied!\n");
-        return 0;
+    FT_Face face;
+    if (FT_New_Face(library, "KacstNaskh.ttf", 0, &face)) {
+        fprintf(stderr, "Failed to load font\n");
+        FT_Done_FreeType(library);
+        return;
     }
 
-
-    printf("faces num : %ld , glyphs num : %ld\n", face->num_faces, face->num_glyphs);
-
-    error = FT_Set_Pixel_Sizes(face, 0, font_size);
-    if (error) {
-        printf("set font size error!\n");
-        return 0;
+    if (FT_Set_Pixel_Sizes(face, 0, 16)) {
+        fprintf(stderr, "Failed to set pixel sizes\n");
+        FT_Done_Face(face);
+        FT_Done_FreeType(library);
+        return;
     }
 
-    error = FT_Select_Charmap(face, ft_encoding_unicode);
-    if (error) {
-        printf("select charmap error!\n");
-        return 0;
+    FT_UInt charIndex = FT_Get_Char_Index(face, character);
+    if (FT_Load_Glyph(face, charIndex, FT_LOAD_DEFAULT)) {
+        fprintf(stderr, "Failed to load glyph\n");
+        FT_Done_Face(face);
+        FT_Done_FreeType(library);
+        return;
     }
 
-    return 0;
-}
-
-int freeType_Uninit() {
-    int error;
-    error = FT_Done_FreeType(library);
-    if (error) {
-        printf("can not Uninit free type library!\n");
-        return 0;
-    }
-    return 0;
-}
-
-int get_font_by_index(const char* ttf_path, int font_size, int char_index, char font_buf[32]) {
-    int error;
-    int i, j, k, counter;
-    unsigned char temp;
-    FT_UInt glyph_index;
-
-    printf("char_index: 0x%x\n", char_index);
-
-    glyph_index = FT_Get_Char_Index(face, char_index);
-
-    printf("glyph_index : %d\n", glyph_index);
-
-    if (!glyph_index) return 0;
-    /**********************************************************/
-
-
-    error = FT_Load_Glyph(face, glyph_index, FT_LOAD_DEFAULT);
-    if (error) {
-        printf("Load char error!\n");
-        return 0;
+    if (FT_Render_Glyph(face->glyph, FT_RENDER_MODE_NORMAL)) {
+        fprintf(stderr, "Failed to render glyph\n");
+        FT_Done_Face(face);
+        FT_Done_FreeType(library);
+        return;
     }
 
-    if (face->glyph->format != FT_GLYPH_FORMAT_BITMAP) {
-        error = FT_Render_Glyph(face->glyph, FT_RENDER_MODE_MONO);
-        if (error) {
-            printf("render char failed!\n");
-            return 0;
-        }
-    }
+    FT_Bitmap bitmap = face->glyph->bitmap;
 
+    // 計算位圖的偏移量
+    int xOffset = (BITMAP_WIDTH - bitmap.width) / 2;
+    int yOffset = (BITMAP_HEIGHT - bitmap.rows) / 2;
 
-    FT_Bitmap* bitmap = &face->glyph->bitmap;
-    printf("r:%d, w:%d, p: %d, s: %d\n",
-           bitmap->rows,
-           bitmap->width,
-           bitmap->pitch,
-           bitmap->num_grays);
-
-    for (j = 0; j < (font_size * 26) / 32 - face->glyph->bitmap_top; j++) {
-        for (i = 0; i < font_size; i++) {
-            printf("1");
-            set_bit_value(0, font_buf, font_size);
-        }
-        printf("\n");
-    }
-
-    for (; j < face->glyph->bitmap.rows + (font_size * 26) / 32 - face->glyph->bitmap_top; j++) {
-        for (i = 1; i <= face->glyph->bitmap_left; i++) {
-            printf("2");
-            set_bit_value(0, font_buf, font_size);
-        }
-
-        for (k = 0; k < face->glyph->bitmap.pitch; k++) {
-            temp = face->glyph->bitmap.buffer[face->glyph->bitmap.pitch * (j + face->glyph->bitmap_top - (font_size *
-                26) / 32) + k];
-            for (counter = 0; counter < 8; counter++) {
-                if (temp & 0x80) {
-                    printf("*");
-                    set_bit_value(1, font_buf, font_size);
-                }
-                else {
-                    printf("_");
-                    set_bit_value(0, font_buf, font_size);
-                }
-                temp <<= 1;
-                i++;
-                if (i > font_size) {
-                    break;
-                }
+    // 調整位圖大小為16x16，並將字形置中
+    for (int y = 0; y < BITMAP_HEIGHT; y++) {
+        for (int x = 0; x < BITMAP_WIDTH; x++) {
+            if (x >= xOffset && x < xOffset + bitmap.width &&
+                y >= yOffset && y < yOffset + bitmap.rows) {
+                int pixel = bitmap.buffer[(y - yOffset) * bitmap.width + (x - xOffset)];
+                buffer[y * BITMAP_WIDTH + x] = pixel;
+            }
+            else {
+                buffer[y * BITMAP_WIDTH + x] = 0;  // 將超出字形範圍的像素設置為0
             }
         }
-
-        for (; i <= font_size; i++) {
-            // printf("|");
-
-            set_bit_value(0, font_buf, font_size);
-        }
-        printf("\n");
     }
 
-    for (; j < font_size; j++) {
-        for (i = 0; i < font_size; i++) {
-            printf("3");
-            set_bit_value(0, font_buf, font_size);
-        }
-        printf("\n");
-    }
-
-    return 1;
+    FT_Done_Face(face);
+    FT_Done_FreeType(library);
 }
 
 struct Pack {
     uint16_t font[16];
 };
 
-std::string print_font(char* buf, int point_size) {
-    std::string ans = "";
-    for (int i = 0; i < point_size; i++) {
-        unsigned char mask = 128;
-        for (int j = 0; j < 8; j++) {
-            if (mask & buf[i]) {
-                ans += "█.";
-            }
-            else {
-                ans += "=.";
-            }
-            mask >>= 1;
-        }
-        if ((i + 1) % (FONT_SIZE / 8) == 0) {
-            ans += "\n";
-        }
-    }
-
-    return ans;
-}
-
-void to_pack(char* buf, Pack* pack) {
-    std::bitset<16> bits(0);
-    int ans = 15;
+void to_pack(unsigned char* buf, Pack* pack) {
+    // 打印位圖數據
     int count = 0;
-
-    for (int i = 0; i < 32; i++) {
-        unsigned char mask = 128;
-
-        for (int j = 0; j < 8; j++) {
-            bool bit = (bool)(mask & buf[i]);
-            bits[ans--] = bit;
-            mask >>= 1;
+    for (int y = 0; y < BITMAP_HEIGHT; y++) {
+        std::string str = "";
+        for (int x = 0; x < BITMAP_WIDTH; x++) {
+            int pixel = buf[y * BITMAP_WIDTH + x];
+            //printf("%c", pixel > 0 ? '#' : ' ');
+            str += pixel > 0 ? "1" : "0";
         }
-
-        if ((i + 1) % (FONT_SIZE / 8) == 0) {
-            pack->font[count++] = bits.to_ullong();
-            bits = 0;
-            ans = 15;
-        }
+        std::bitset<16> bit(str);
+        pack->font[count++] = bit.to_ullong();
     }
 }
-
-struct Pack2 {
-    uint16_t font[16];
-    Pack2* next;
-};
 
 int main() {
-    char font_buf[FONT_SIZE * FONT_SIZE / 8] = {'\0'};
-    const char* unicode_font_name = "english_16x16.bin";
+    unsigned char buffer[BITMAP_WIDTH * BITMAP_HEIGHT] = { '\0' };
+
+    const char* unicode_font_name = "test_16x16.bin";
     FILE* file = fopen(unicode_font_name, "wb+");
+    Pack* pack = new Pack[0xFFFF];
 
-    freeType_init("eng.ttf", FONT_SIZE);
-
-    Pack* pack = new Pack[0xFF];
-
-    for (int i = 0; i < 0xFF; ++i) {
-        if (get_font_by_index("eng.ttf", FONT_SIZE, i, font_buf)) {
-            std::cout << print_font(font_buf, sizeof(font_buf)) << std::endl;
-            to_pack(font_buf, &pack[i]);
-            fwrite(&pack[i], 1, sizeof(Pack), file);
-        }
-        else {
-            memset(pack[i].font, 0, sizeof(pack[i].font));
-            fwrite(&pack[i], 1, sizeof(Pack), file);
-        }
-
-        g_index = 0;
+    for (int i = 0; i < 0xFFFF; ++i) {
+        draw(i, buffer);
+        to_pack(buffer, &pack[i]);
+        fwrite(&pack[i], 1, sizeof(Pack), file);
     }
 
-    freeType_Uninit();
     return 0;
 }

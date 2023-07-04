@@ -80,7 +80,7 @@ namespace SaoFU {
     std::string query_stops(nlohmann::json& DisplayStopOfRouteUrl, std::string RouteName, int Direction, int sequence) {
         for (auto& row : DisplayStopOfRouteUrl) {
             if (sequence > row["Stops"][sequence]) {
-                return u8"(終點站)";
+                return u8"終點站";
             }
 
             if (row["RouteName"]["Zh_tw"] == RouteName && row["Direction"] == Direction) {
