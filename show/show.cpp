@@ -20,11 +20,11 @@ private:
     size_t screen_size;
 
     wchar_t* screen;
-    Pack* font;
+    Font* font;
     HANDLE hConsole;
 
 public:
-    Marquee(int width, int height, wchar_t* screen, Pack* font, HANDLE hConsole) :
+    Marquee(int width, int height, wchar_t* screen, Font* font, HANDLE hConsole) :
         width(width), height(height), screen(screen), font(font), hConsole(hConsole) {
         this->screen_size = width * height;
     }
@@ -278,7 +278,7 @@ int main() {
     fseek(fp, 0L, SEEK_SET);
     fread(buffer, size, 1, fp);
     fclose(fp);
-    Pack* pack = (Pack*)buffer;
+    Font* pack = (Font*)buffer;
 
     CONSOLE_SCREEN_BUFFER_INFO console_buffer_info = {0};
     GetConsoleScreenBufferInfo(hConsole, &console_buffer_info);

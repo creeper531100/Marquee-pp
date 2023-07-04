@@ -94,41 +94,33 @@ namespace SaoFU {
         return std::wstring(((width - count_size) / 16) + 1, L' ');
     }
 
-    void draw_text(Pack* font, Param* param, wchar_t* screen) {
-        constexpr int glyph_height = 16;
-        const int glyph_width = 16 * param->glyph_width_factor;
+    void draw_text(Font* font, Param* param, wchar_t* screen) {
+        const int& glyph_width = param->glyph_width;
+
+        const int& y_begin = param->y_begin;
+        const int& y_end = param->y_end;
+        const int& y_offset = param->y_offset;
+
+        const int& x_offset = param->x_offset;
+        const int& width = param->screen_width;
 
         int start = 0;
-
-        for (int i = 0; i < param->ws.length(); i++) {
+        for (auto& ch : param->ws) {
             bool is_half_width = false;
-            wchar_t& ch = param->ws[i];
-
-            int& row_begin = param->y_begin;
-            int& row_end = param->y_end;
-            int& row_count = param->y_offset;
 
             // 畫出一個字元
-            for (int row = row_begin; row < row_end; row++) {
-                for (int col = 0; col < glyph_width; col += param->glyph_width_offset) {
+            for (int row = y_begin; row < y_end; row++) {
+                for (int j = 0, pos = 0; j < 16; j++, pos += param->glyph_width_offset) {
                     // 超出畫面寬度就不用繼續畫了
-                    if (param->x_offset + (start + col) >= param->screen_width) {
-                        break;
-                    }
+                    bool in_max_range = start + pos + x_offset < width;
+                    bool in_min_range = start + pos + x_offset >= 0;
 
-                    //TODO
-                    bool b = font[ch][row - row_count] & 0x8000 >> col / param->glyph_width_factor;
-                    if (b && param->x_offset + col + start >= 0) {
-                        screen[param->x_offset + start + (row * param->screen_width + col)] = param->fill_char;
-                    }
-                    else {
-                        screen[param->x_offset + start + (row * param->screen_width + col)] = param->background;
+                    if (in_max_range && in_min_range) {
+                        screen[start + (row * width + pos) + x_offset] = font[ch][row - y_offset] & (0x8000 >> j) ? param->fill_char : param->background;
                     }
                 }
-            }
 
-            for (int row = 0; row < glyph_height; row++) {
-                // 判斷是否為半形字元(字元另一半是空的)
+                // 檢查是否為半形字元(字元另一半是空的)
                 is_half_width |= font[ch][row] & 0xFF;
             }
 

@@ -6,7 +6,7 @@
 #include <nlohmann/json.hpp>
 
 class CUrlHandle;
-using Pack = uint16_t[16];
+using Font = uint16_t[16];
 struct Param;
 
 #define SAOFU_EXCEPTION(hr) SaoFU::e_what(__LINE__, __FILE__, hr)
@@ -21,7 +21,7 @@ namespace SaoFU {
 namespace SaoFU {
     void listenForKeyboardEvents(std::string token, int index, nlohmann::json& json);
     std::wstring count_space(int count_size, int width);
-    void draw_text(Pack* font, Param* param, wchar_t* screen);
+    void draw_text(Font* font, Param* param, wchar_t* screen);
 
     void get_time(wchar_t* wbuf, const wchar_t* fmt);
     std::wstring utf8_to_utf16(const std::string& str);
@@ -66,7 +66,7 @@ struct Param {
     int x_end = screen_width; //文字在螢幕上截止x座標
     int x_offset = 0; //文字在螢幕x偏移位置
 
-    int glyph_width_factor = 2; //字形寬度的倍數(數值越小越窄)
+    int glyph_width = 32; //字形的寬度(全寬32、半寬16)
     int glyph_width_offset = 2; //字形寬度的偏移量
 
     wchar_t fill_char = L'█'; //文字填滿部分的符號
