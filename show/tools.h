@@ -19,7 +19,10 @@ namespace SaoFU {
 }
 
 namespace SaoFU {
-    void listenForKeyboardEvents(std::string token, int index, nlohmann::json& json);
+    int query_plate_numb(nlohmann::json& json, std::string plate_numb);
+    std::string query_stops(nlohmann::json& DisplayStopOfRouteUrl, std::string RouteName, int Direction, int sequence);
+
+    void listenForKeyboardEvents(std::string token, std::string plate_numb, nlohmann::json& json);
     std::wstring count_space(int count_size, int width);
     void draw_text(Font* font, Param* param, wchar_t* screen);
 
@@ -66,6 +69,7 @@ struct Param {
     int x_end = screen_width; //文字在螢幕上截止x座標
     int x_offset = 0; //文字在螢幕x偏移位置
 
+    int glyph_height = 16; //字形的高度(全寬16、半寬16)
     int glyph_width = 32; //字形的寬度(全寬32、半寬16)
     int glyph_width_offset = 2; //字形寬度的偏移量
 

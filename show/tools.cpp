@@ -69,13 +69,37 @@ namespace SaoFU {
         return responseBuffer;
     }
 
+    int query_plate_numb(nlohmann::json& json, std::string plate_numb) {
+        for (size_t i = 0; i < json.size(); ++i) {
+            if (json[i]["PlateNumb"] == plate_numb) {
+                return i;
+            }
+        }
+    }
+
+    std::string query_stops(nlohmann::json& DisplayStopOfRouteUrl, std::string RouteName, int Direction, int sequence) {
+        for (auto& row : DisplayStopOfRouteUrl) {
+            if (sequence > row["Stops"][sequence]) {
+                return u8"(終點站)";
+            }
+
+            if (row["RouteName"]["Zh_tw"] == RouteName && row["Direction"] == Direction) {
+                return row["Stops"][sequence]["StopName"]["Zh_tw"];
+            }
+        }
+
+        return u8"(???)";
+    }
+
     int old_sequence = 0;
-    void listenForKeyboardEvents(std::string token, int index, nlohmann::json& json) {
+    void listenForKeyboardEvents(std::string token, std::string plate_numb, nlohmann::json& json) {
         while (true) {
             try {
-                std::string str = get_data(token, g_setting["url"]);
+                std::string str = get_data(token, g_setting["RealTimeNearStopUrl"]);
 
                 json = nlohmann::json::parse(str);
+
+                int index = query_plate_numb(json, plate_numb);
                 int sequence = json[index]["StopSequence"];
 
                 g_trigger = sequence != old_sequence;
@@ -119,8 +143,10 @@ namespace SaoFU {
                         screen[start + (row * width + pos) + x_offset] = font[ch][row - y_offset] & (0x8000 >> j) ? param->fill_char : param->background;
                     }
                 }
+            }
 
-                // 檢查是否為半形字元(字元另一半是空的)
+            for (int row = 0; row < param->glyph_height; row++) {
+                // 判斷是否為半形字元(字元另一半是空的)
                 is_half_width |= font[ch][row] & 0xFF;
             }
 

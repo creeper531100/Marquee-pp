@@ -242,20 +242,31 @@ int main() {
     SaoFU::g_setting = nlohmann::json::parse(str);
 
     std::string token = SaoFU::get_token();
-    nlohmann::json json = nlohmann::json::parse(SaoFU::get_data(token, SaoFU::g_setting["url"]));
+    nlohmann::json json = nlohmann::json::parse(SaoFU::get_data(token, SaoFU::g_setting["RealTimeNearStopUrl"]));
 
     int i = 0;
-    for(auto& row : json) {
-        std::string PlateNumb = row["PlateNumb"];
-        int Direction = row["Direction"];
+    std::string PlateNumb;
+    std::string RouteName;
 
-        printf("(%02d) %-8s %s\n", i++, PlateNumb.c_str(), Direction ? u8"去程" : u8"回程");
+    for(auto& row : json) {
+        PlateNumb = row["PlateNumb"];
+        RouteName = row["RouteName"]["Zh_tw"];
+        std::string StopName = row["StopName"]["Zh_tw"];
+
+        printf("(%02d) %-3s %-9s %s\n", i++, RouteName.c_str(), PlateNumb.c_str(), StopName.c_str());
     }
 
     printf(u8"選擇: ");
 
     int index = 0;
     std::cin >> index;
+
+    int Direction = 0;
+    PlateNumb = json[index]["PlateNumb"];
+    RouteName = json[index]["RouteName"]["Zh_tw"];
+    Direction = json[index]["Direction"];
+
+    system("cls");
 
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     CONSOLE_FONT_INFOEX fontInfo;
@@ -292,8 +303,9 @@ int main() {
     marquee.screen_clear();
 
     curl_global_init(CURL_GLOBAL_ALL);
-    std::thread(SaoFU::listenForKeyboardEvents, token, index, std::ref(json)).detach();
+    std::thread(SaoFU::listenForKeyboardEvents, token, PlateNumb, std::ref(json)).detach();
 
+    nlohmann::json DisplayStopOfRouteUrl = nlohmann::json::parse(SaoFU::get_data(token, SaoFU::g_setting["DisplayStopOfRouteUrl"]));
     while (1) {
         while (1) {
             wchar_t wbuf[80];
@@ -309,19 +321,56 @@ int main() {
                 break;
             }
 
+            int sequence = json[index]["StopSequence"];
+            std::wstring now  = SaoFU::utf8_to_utf16(json[index]["StopName"]["Zh_tw"]);
+            std::wstring next = SaoFU::utf8_to_utf16(SaoFU::query_stops(DisplayStopOfRouteUrl, RouteName, Direction, sequence));
+
+            now = now.substr(0, 3);
+            next = next.substr(0, 7 - now.length());
+
+            param2.x_offset = 0;
+            param2.ws = now + L"  " + next;
+
+            if (marquee.slide(param2).long_delay(30).done) {
+                break;
+            }
+
+            for (int i = 0; i < 2; i++) {
+                param2.x_end = 0;
+                param2.ws = now + L">>" + next;
+
+                if (marquee.screen_clear().marquee(param2).long_delay(30).done) {
+                    break;
+                }
+
+                param2.ws = now + L"  " + next;
+
+                if (marquee.screen_clear().marquee(param2).long_delay(30).done) {
+                    break;
+                }
+            }
+
             param2.ws = L"歡迎搭乘台中市公車";
             param2.x_offset = width;
             param2.x_end = -SaoFU::count_size(param2.ws);
-
+            
             if (marquee.marquee(param2).delay(100).done) {
                 break;
             }
+
         }
 
         marquee.screen_clear().jump_to_here();
 
+        index = SaoFU::query_plate_numb(json, PlateNumb);
+
         std::wstring chinese = SaoFU::utf8_to_utf16(json[index]["StopName"]["Zh_tw"]);
         std::wstring english = SaoFU::utf8_to_utf16(json[index]["StopName"]["En"]);
+
+        std::wstring plate = SaoFU::utf8_to_utf16(json[index]["PlateNumb"]);
+        std::wstring route = SaoFU::utf8_to_utf16(json[index]["RouteName"]["Zh_tw"]);
+
+        SetConsoleTitle((route + L" " + plate + L" " + chinese + L" " + english).c_str());
 
         Param param;
         param.screen_width = width;
