@@ -234,9 +234,6 @@ public:
 
 
 int main() {
-    RECT rect2 = { 0, 0, 16 * 14 * 8 + 48, 32 * 7 + 64 };
-    MoveWindow(GetConsoleWindow(), rect2.left, rect2.top, rect2.right - rect2.left, rect2.bottom - rect2.top, TRUE);
-
     SetConsoleOutputCP(65001);
 
     std::ifstream t("setting.json");
@@ -396,10 +393,10 @@ int main() {
 
         SetConsoleTitle((route + L" " + plate + L" " + chinese + L" " + english).c_str());
 
-        if (is_first_run) {
+        /*if (is_first_run) {
             is_first_run = false;
             continue;
-        }
+        }*/
 
         Param param;
         param.screen_width = width;
