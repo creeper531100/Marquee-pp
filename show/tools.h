@@ -5,17 +5,12 @@
 #include <string>
 #include <nlohmann/json.hpp>
 
-class CUrlHandle;
 using Font = uint16_t[16];
 struct Param;
 
 #define SAOFU_EXCEPTION(hr) SaoFU::e_what(__LINE__, __FILE__, hr)
 
 #define SAOFU_TRY(fn) try fn catch(std::exception &e) { SaoFU::e_what(__LINE__, e.what(), 2); }
-
-namespace SaoFU {
-    inline bool g_trigger = false;
-}
 
 namespace SaoFU {
     std::wstring count_space(int count_size, int width);
@@ -31,10 +26,6 @@ namespace SaoFU {
             end += show[i] < 256 ? 16 : 32;
         }
         return end;
-    }
-
-    constexpr uint64_t delay_step(uint32_t step, uint32_t delay) {
-        return (uint64_t)delay << 32 | step;
     }
 }
 

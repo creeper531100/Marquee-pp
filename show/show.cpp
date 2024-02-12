@@ -12,7 +12,6 @@
 
 #include <curl/curl.h>
 
-#include<nlohmann/json.hpp>
 using Json = nlohmann::json;
 
 #include <mmsystem.h>
@@ -20,12 +19,10 @@ using Json = nlohmann::json;
 
 class Marquee {
 public:
-    bool done = false;
     const int width;
     const int height;
 private:
     size_t screen_size;
-
     wchar_t* screen;
     Font* font;
     HANDLE hConsole;
@@ -117,10 +114,6 @@ public:
             if (i % param.step == 0) {
                 delay(param.time);
             }
-
-            if (done) {
-                return *this;
-            }
         }
         return *this;
     }
@@ -160,10 +153,6 @@ public:
             if (i % param.step == 0) {
                 delay(param.time);
             }
-
-            if (done) {
-                return *this;
-            }
         }
 
         return *this;
@@ -193,41 +182,15 @@ public:
             if (i % param.step == 0) {
                 delay(param.time);
             }
-
-            if (done) {
-                return *this;
-            }
         }
 
         return *this;
     }
 
     Marquee& delay(int time) {
-        if (SaoFU::g_trigger == true || this->done == true) {
-            this->done = true;
-            SaoFU::g_trigger = 0;
-            return *this;
-        }
-
         std::this_thread::sleep_for(std::chrono::milliseconds(time));
         return *this;
     }
-
-    Marquee& long_delay(int time) {
-        for (int i = 0; i < time; i++) {
-            if (delay(1).done) {
-                return *this;
-            }
-        }
-        return *this;
-    }
-
-    Marquee& jump_to_here() {
-        this->done = false;
-        return *this;
-    }
-
-    // 辅助函数，根据方法名调用相应的方法
 
     using MemberFunctionPointer = std::function<void(std::any, Param& param)>;
     using MethodMap = std::map<std::string, MemberFunctionPointer>;
@@ -235,10 +198,6 @@ public:
         MethodMap functionMap = {
             {"screen_clear", [this](std::any args, Param& param) {
                 this->screen_clear();
-            }},
-            {"long_delay", [this](std::any args, Param& param) {
-                ULONG64 value = std::any_cast<ULONG64>(args);
-                this->long_delay(value);
             }},
             {"marquee", [this](std::any args, Param& param) {
                 this->marquee(param);

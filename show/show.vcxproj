@@ -133,7 +133,6 @@
     <ClCompile Include="tools.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="CLI11.hpp" />
     <ClInclude Include="tools.h" />
   </ItemGroup>
   <ItemGroup>
