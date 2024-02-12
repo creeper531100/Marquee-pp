@@ -12,6 +12,9 @@
 
 #include <curl/curl.h>
 
+#include<nlohmann/json.hpp>
+using Json = nlohmann::json;
+
 #include <mmsystem.h>
 #pragma comment(lib, "winmm.lib")
 
@@ -255,9 +258,6 @@ public:
         functionMap[methodName](args, param);
     }
 };
-
-#include<nlohmann/json.hpp>
-using Json = nlohmann::json;
 
 void marquee_exec(Json json, Marquee& marquee) {
     for (auto& row : json["exec"]) {
