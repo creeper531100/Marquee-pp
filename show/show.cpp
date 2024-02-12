@@ -238,11 +238,13 @@ public:
                 this->long_delay(value);
             }},
             {"marquee", [this](std::any args, Param& param) {
-                param.x_end = -SaoFU::count_size(param.ws);
                 this->marquee(param);
             }},
             {"slide", [this](std::any args, Param& param) {
                 this->slide(param);
+            }},
+            {"flash", [this](std::any args, Param& param) {
+                this->flash(param);
             }},
             {"delay", [this](std::any args, Param& param) {
                 ULONG64 value = std::any_cast<ULONG64>(args);
@@ -266,11 +268,32 @@ void marquee_exec(Json json, Marquee& marquee) {
         param.step = row["effect"]["step"];
         param.time = row["effect"]["time"];
 
-        param.x_offset = std::map<std::string, int> {
-            {"begin", 0},
+        std::map<std::string, int> begin_position = {
+            { "begin", 0},
+            { "center", (param.screen_width / 2) - (SaoFU::count_size(param.ws) / 2) },
+            { "end", param.screen_width }
+        };
+
+        if (begin_position.find(row["effect"]["begin_position"]) != begin_position.end()) {
+            param.x_offset = begin_position[row["effect"]["begin_position"]];
+        }
+        else {
+            param.x_offset = std::stoi((std::string)row["effect"]["begin_position"]);
+        }
+
+        std::map<std::string, int> end_position {
+            {"top", 0},
             {"center", (param.screen_width / 2) - (SaoFU::count_size(param.ws) / 2)},
-            {"end", marquee.width}
-        }[row["effect"]["text_position"]];
+            {"end", param.screen_width },
+            {"last_char",-SaoFU::count_size(param.ws) }
+        };
+
+        if (end_position.find(row["effect"]["end_position"]) != end_position.end()) {
+            param.x_end = end_position[row["effect"]["end_position"]];
+        }
+        else {
+            param.x_end = std::stoi((std::string)row["effect"]["end_position"]);
+        }
 
         param.screen_clear_method = std::map<std::string, SaoFU::utils::TextClearMethod> {
             {"None", SaoFU::utils::TextClearMethod::None},
@@ -333,5 +356,6 @@ int main() {
     Marquee marquee(width, height, screen, pack, hConsole);
     marquee.screen_clear();
 
+    while(1)
     marquee_exec(json, marquee);
 }
