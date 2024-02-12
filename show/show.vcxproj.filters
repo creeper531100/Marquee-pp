@@ -26,5 +26,11 @@
     <ClInclude Include="tools.h">
       <Filter>標頭檔</Filter>
     </ClInclude>
+    <ClInclude Include="CLI11.hpp">
+      <Filter>標頭檔</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="trash.txt" />
   </ItemGroup>
 </Project>

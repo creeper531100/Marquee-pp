@@ -15,24 +15,15 @@ struct Param;
 
 namespace SaoFU {
     inline bool g_trigger = false;
-    inline nlohmann::json g_setting;
 }
 
 namespace SaoFU {
-    int query_plate_numb(nlohmann::json& json, std::string plate_numb);
-    nlohmann::json query_stops(nlohmann::json& DisplayStopOfRouteUrl, std::string RouteName, int Direction);
-
-    void listenForKeyboardEvents(std::string token, std::string plate_numb, nlohmann::json& json);
     std::wstring count_space(int count_size, int width);
     void draw_text(Font* font, Param* param, wchar_t* screen);
 
-    void get_time(wchar_t* wbuf, const wchar_t* fmt);
+    std::wstring get_time(const wchar_t* fmt);
     std::wstring utf8_to_utf16(const std::string& str);
-
-    std::string get_token();
-    std::string get_data(std::string token, std::string url);
-
-    long e_what(int line, const char* file, long hr);
+    std::string utf16_to_utf8(const std::wstring& utf16String);
 
     constexpr int count_size(std::wstring_view show) {
         int end = 0;
@@ -79,6 +70,9 @@ struct Param {
     int y_begin = 0; //文字在螢幕上起始y座標
     int y_end = 16; //文字在螢幕上截止y座標
     int y_offset = 0; //文字在螢幕y偏移位置
+
+    int step = 1;
+    int time = 1;
 
     int screen_clear_method = SaoFU::utils::TextClearMethod::ClearAllText;
 };
