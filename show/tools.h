@@ -5,8 +5,10 @@
 #include <string>
 #include <nlohmann/json.hpp>
 
+using Json = nlohmann::json;
 using Font = uint16_t[16];
-struct Param;
+
+struct DisplayConfig;
 
 #define SAOFU_EXCEPTION(hr) SaoFU::e_what(__LINE__, __FILE__, hr)
 
@@ -15,7 +17,6 @@ struct Param;
 
 namespace SaoFU {
     std::wstring count_space(int count_size, int width);
-    void draw_text(Font* font, Param* param, wchar_t* screen);
 
     std::wstring get_time(const wchar_t* fmt);
     std::wstring utf8_to_utf16(const std::string& str);
@@ -32,23 +33,20 @@ namespace SaoFU {
     }
 }
 
-#define TEXT_CLEAR_METHOD_ENUM \
-    X(None) \
-    X(ClearAll) \
-    X(ClearAllText) \
-    X(ClearTextItself) \
-    X(ClearTextBefore) \
-    X(ClearTextAfter)
-
 namespace SaoFU::utils {
     enum TextClearMethod {
-        #define X(method) method,
-                TEXT_CLEAR_METHOD_ENUM
-        #undef X
+        None, 
+        ClearAll,
+        ClearAllText,
+        ClearTextItself, 
+        ClearTextBefore,
+        ClearTextAfter,
     };
+    using CategoryToValueMap = std::map<std::string, int>;
+    using TextClearMethodMap = std::map<std::string, TextClearMethod>;
 }
 
-struct Param {
+struct DisplayConfig {
     std::wstring ws; //字串
     int screen_width; //緩衝區大小
 
@@ -73,4 +71,49 @@ struct Param {
     int screen_clear_method = SaoFU::utils::TextClearMethod::ClearAllText;
 };
 
+struct DisplayConfigInitializer {
+    DisplayConfig param;
+    SaoFU::utils::CategoryToValueMap begin_position;
+    SaoFU::utils::CategoryToValueMap end_position;
+    SaoFU::utils::TextClearMethodMap clear_method;
 
+    DisplayConfigInitializer(DisplayConfig& param) : param(param) {
+        begin_position = {
+            { "begin", 0},
+            { "center", (param.screen_width / 2) - (SaoFU::count_size(param.ws) / 2) },
+            { "end", param.screen_width }
+        };
+
+        end_position = {
+            {"top", 0},
+            {"center", (param.screen_width / 2) - (SaoFU::count_size(param.ws) / 2)},
+            {"end", param.screen_width },
+            {"last_char",-SaoFU::count_size(param.ws) }
+        };
+
+        clear_method = {
+            { "None", SaoFU::utils::TextClearMethod::None},
+            { "ClearAll", SaoFU::utils::TextClearMethod::ClearAll },
+            { "ClearAllText", SaoFU::utils::TextClearMethod::ClearAllText },
+            { "ClearTextItself", SaoFU::utils::TextClearMethod::ClearTextItself },
+            { "ClearTextBefore", SaoFU::utils::TextClearMethod::ClearTextBefore },
+            { "ClearTextAfter", SaoFU::utils::TextClearMethod::ClearTextAfter },
+        };
+    };
+};
+
+template<typename It, typename Val, typename Pred>
+int find_or_predict(It it, Val value, Pred pred) {
+    if (it.find(value) != it.end()) {
+        return it[value];
+    }
+    return pred(value);
+}
+
+template<typename It, typename Val>
+int find_or_predict(It it, Val value) {
+    if (it.find(value) != it.end()) {
+        return it[value];
+    }
+    return 0;
+}

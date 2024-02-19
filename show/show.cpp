@@ -1,8 +1,6 @@
 ﻿#define _CRT_SECURE_NO_WARNINGS
 #define _CRT_NON_CONFORMING_SWPRINTFS
 #include <fstream>
-#include <future>
-
 #include "tools.h"
 
 #include <iostream>
@@ -10,12 +8,42 @@
 #include <windows.h>
 #include <sstream>
 
-#include <curl/curl.h>
+void draw_text(Font* font, DisplayConfig* param, wchar_t* screen) {
+    const int& glyph_width = param->glyph_width;
 
-using Json = nlohmann::json;
+    const int& y_begin = param->y_begin;
+    const int& y_end = param->y_end;
+    const int& y_offset = param->y_offset;
 
-#include <mmsystem.h>
-#pragma comment(lib, "winmm.lib")
+    const int& x_offset = param->x_offset;
+    const int& width = param->screen_width;
+
+    int start = 0;
+    for (auto& ch : param->ws) {
+        bool is_half_width = false;
+
+        // 畫出一個字元
+        for (int row = y_begin; row < y_end; row++) {
+            for (int j = 0, pos = 0; j < 16; j++, pos += param->glyph_width_offset) {
+                // 超出畫面寬度就不用繼續畫了
+                bool in_max_range = start + pos + x_offset < width;
+                bool in_min_range = start + pos + x_offset >= 0;
+
+                if (in_max_range && in_min_range) {
+                    screen[start + (row * width + pos) + x_offset] = font[ch][row - y_offset] & (0x8000 >> j) ? param->fill_char : param->background;
+                }
+            }
+        }
+
+        for (int row = 0; row < param->glyph_height; row++) {
+            // 判斷是否為半形字元(字元另一半是空的)
+            is_half_width |= font[ch][row] & 0xFF;
+        }
+
+        // 計算下一個字元的起始位置
+        start += (is_half_width ? glyph_width : glyph_width / 2);
+    }
+}
 
 class Marquee {
 public:
@@ -27,7 +55,7 @@ private:
     Font* font;
     HANDLE hConsole;
 
-    using MemberFunctionPointer = std::function<void(std::any, Param& param)>;
+    using MemberFunctionPointer = std::function<void(std::any, DisplayConfig& config)>;
     using MethodMap = std::map<std::string, MemberFunctionPointer>;
     MethodMap method_map;
 public:
@@ -36,23 +64,23 @@ public:
     {
         this->screen_size = width * height;
 
-        method_map["screen_clear"] = [this](std::any args, Param& param) {
+        method_map["screen_clear"] = [this](std::any args, DisplayConfig& config) {
             this->screen_clear();
         };
 
-        method_map["marquee"] = [this](std::any args, Param& param) {
-            this->marquee(param);
+        method_map["marquee"] = [this](std::any args, DisplayConfig& config) {
+            this->marquee(config);
         };
 
-        method_map["slide"] = [this](std::any args, Param& param) {
-            this->slide(param);
+        method_map["slide"] = [this](std::any args, DisplayConfig& config) {
+            this->slide(config);
         };
 
-        method_map["flash"] = [this](std::any args, Param& param) {
-            this->flash(param);
+        method_map["flash"] = [this](std::any args, DisplayConfig& config) {
+            this->flash(config);
         };
 
-        method_map["delay"] = [this](std::any args, Param& param) {
+        method_map["delay"] = [this](std::any args, DisplayConfig& config) {
             ULONG64 value = std::any_cast<ULONG64>(args);
             this->delay(value);
         };
@@ -68,35 +96,35 @@ public:
     /**
      * 清除螢幕區域的文字，根據指定的清除方法（詳細在SaoFU::utils::TextClearMethod內）進行清除。
      *
-     * @param param  清除參數，需設定以下參數：
+     * @config config  清除參數，需設定以下參數：
      *               - screen_width: 螢幕寬度
      *               - x_offset: 偏移量
      *               - ws: 顯示文字
-     * @param row  掃描索引
-     * @param enable_clear  是否清除文字
+     * @config row  掃描索引
+     * @config enable_clear  是否清除文字
      * @return 一個包含清除範圍的std::pair，first表示清除區域的起始位置，second表示結束位置
      */
-    std::pair<int, int> clear_text_region(Param& param, int index = 0, bool clear_region = true) {
+    std::pair<int, int> clear_text_region(DisplayConfig& config, int index = 0, bool clear_region = true) {
         std::pair<int, int> region;
         int x_begin = 0;
         int x_end = 0;
 
-        switch (param.screen_clear_method) {
+        switch (config.screen_clear_method) {
         case SaoFU::utils::TextClearMethod::ClearAllText:
             x_begin = 0;
-            x_end = param.screen_width;
+            x_end = config.screen_width;
             break;
         case SaoFU::utils::TextClearMethod::ClearTextItself:
-            x_begin = param.x_offset;
-            x_end = SaoFU::count_size(param.ws);
+            x_begin = config.x_offset;
+            x_end = SaoFU::count_size(config.ws);
             break;
         case SaoFU::utils::TextClearMethod::ClearTextBefore:
             x_begin = 0;
-            x_end = SaoFU::count_size(param.ws) + param.x_offset;
+            x_end = SaoFU::count_size(config.ws) + config.x_offset;
             break;
         case SaoFU::utils::TextClearMethod::ClearTextAfter:
-            x_begin = param.x_offset;
-            x_end = param.screen_width - param.x_offset;
+            x_begin = config.x_offset;
+            x_end = config.screen_width - config.x_offset;
             break;
         case SaoFU::utils::TextClearMethod::ClearAll:
             memset(screen, 0, screen_size * sizeof(wchar_t));
@@ -116,29 +144,29 @@ public:
     //TODO 刷新偏移
     /**
      *  Param所需參數說明
-     *  @param param wstring ws          你要顯示的字串
-     *  @param param int x_begin         x開始位置
-     *  @param param int x_end           x截止位置
-     *  @param param int x_offset        x偏移
+     *  @config config wstring ws          你要顯示的字串
+     *  @config config int x_begin         x開始位置
+     *  @config config int x_end           x截止位置
+     *  @config config int x_offset        x偏移
      *  其他參數說明
-     *  @param param uint64_t delay_time 休眠時間
+     *  @config config uint64_t delay_time 休眠時間
      */
-    Marquee& marquee(Param& param) {
+    Marquee& marquee(DisplayConfig& config) {
         DWORD dwBytesWritten;
 
-        param.y_begin = 0;
-        param.y_end = 16;
-        param.y_offset = 0;
+        config.y_begin = 0;
+        config.y_end = 16;
+        config.y_offset = 0;
 
-        for (int i = param.x_offset; i >= param.x_end; i--) {
+        for (int i = config.x_offset; i >= config.x_end; i--) {
             memset(screen, 0, screen_size * sizeof(wchar_t));
-            param.x_offset = i;
+            config.x_offset = i;
 
-            SaoFU::draw_text(font, &param, screen);
+            draw_text(font, &config, screen);
             WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
 
-            if (i % param.step == 0) {
-                delay(param.time);
+            if (i % config.step == 0) {
+                delay(config.time);
             }
         }
         return *this;
@@ -146,18 +174,18 @@ public:
 
     /**
      *  Param所需參數說明
-     *  @param param wstring ws          你要顯示的字串
-     *  @param param int x_offset        x偏移
+     *  @config config wstring ws          你要顯示的字串
+     *  @config config int x_offset        x偏移
      *  其他參數說明
-     *  @param param uint64_t delay_time 休眠時間
+     *  @config config uint64_t delay_time 休眠時間
      */
-    Marquee& slide(Param& param) {
+    Marquee& slide(DisplayConfig& config) {
         DWORD dwBytesWritten;
-        param.y_end = 16;
+        config.y_end = 16;
 
         for (int i = 0; i < 16; i++) {
             for (int j = 0; j < 15; j++) {
-                auto region = clear_text_region(param, j, false);
+                auto region = clear_text_region(config, j, false);
                 memmove(screen + (width * j) + region.first, screen + (width * (j + 1)) + region.first,
                         region.second * sizeof(wchar_t));
                 memset(screen + ((15 - i) * width) + region.first, 0, region.second * sizeof(wchar_t));
@@ -169,15 +197,15 @@ public:
              * memset(screen + ((15 - i) * width), 0, width * sizeof(wchar_t));
              */
 
-            param.y_begin = 15 - i;
-            param.y_offset = 15 - i;
+            config.y_begin = 15 - i;
+            config.y_offset = 15 - i;
 
-            SaoFU::draw_text(font, &param, screen);
+            draw_text(font, &config, screen);
 
             WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
 
-            if (i % param.step == 0) {
-                delay(param.time);
+            if (i % config.step == 0) {
+                delay(config.time);
             }
         }
 
@@ -186,27 +214,27 @@ public:
 
     /**
      *  Param所需參數說明
-     *  @param param wstring ws          你要顯示的字串
-     *  @param param int x_begin         x開始位置 
-     *  @param param int x_end           x截止位置
-     *  @param param int x_offset        x偏移 
+     *  @config config wstring ws          你要顯示的字串
+     *  @config config int x_begin         x開始位置 
+     *  @config config int x_end           x截止位置
+     *  @config config int x_offset        x偏移 
      *  其他參數說明
-     *  @param param uint64_t delay_time 休眠時間
+     *  @config config uint64_t delay_time 休眠時間
      */
-    Marquee& flash(Param& param) {
+    Marquee& flash(DisplayConfig& config) {
         DWORD dwBytesWritten;
-        param.y_begin = 0;
-        param.y_offset = 0;
+        config.y_begin = 0;
+        config.y_offset = 0;
 
         for (int i = 0; i < 16; i++) {
-            clear_text_region(param, i);
-            param.y_end = i + 1;
+            clear_text_region(config, i);
+            config.y_end = i + 1;
 
-            SaoFU::draw_text(font, &param, screen);
+            draw_text(font, &config, screen);
             WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
 
-            if (i % param.step == 0) {
-                delay(param.time);
+            if (i % config.step == 0) {
+                delay(config.time);
             }
         }
 
@@ -218,66 +246,14 @@ public:
         return *this;
     }
 
-    void invoke_method(const std::string& methodName, std::any args, Param& param) {
+    void invoke_method(const std::string& methodName, std::any args, DisplayConfig& config) {
         auto it = method_map.find(methodName);
         if (it == method_map.end()) {
             throw std::runtime_error("找不到方法: " + methodName);
         }
-        it->second(args, param);
+        it->second(args, config);
     }
 };
-
-void marquee_exec(Json json, Marquee& marquee) {
-    for (auto& row : json["exec"]) {
-        Param param;
-        param.ws = SaoFU::get_time(SaoFU::utf8_to_utf16(row["str"]).c_str());
-        param.screen_width = marquee.width;
-
-        param.step = row["effect"]["step"];
-        param.time = row["effect"]["time"];
-
-        std::map<std::string, int> begin_position = {
-            { "begin", 0},
-            { "center", (param.screen_width / 2) - (SaoFU::count_size(param.ws) / 2) },
-            { "end", param.screen_width }
-        };
-
-        if (begin_position.find(row["effect"]["begin_position"]) != begin_position.end()) {
-            param.x_offset = begin_position[row["effect"]["begin_position"]];
-        }
-        else {
-            param.x_offset = std::stoi((std::string)row["effect"]["begin_position"]);
-        }
-
-        std::map<std::string, int> end_position {
-            {"top", 0},
-            {"center", (param.screen_width / 2) - (SaoFU::count_size(param.ws) / 2)},
-            {"end", param.screen_width },
-            {"last_char",-SaoFU::count_size(param.ws) }
-        };
-
-        if (end_position.find(row["effect"]["end_position"]) != end_position.end()) {
-            param.x_end = end_position[row["effect"]["end_position"]];
-        }
-        else {
-            param.x_end = std::stoi((std::string)row["effect"]["end_position"]);
-        }
-
-        param.screen_clear_method = std::map<std::string, SaoFU::utils::TextClearMethod> {
-            #define X(method) {#method, SaoFU::utils::TextClearMethod::method},
-                TEXT_CLEAR_METHOD_ENUM
-            #undef X
-        }[row["effect"]["clear_text_region"]];
-
-        for (auto& cols : row["run"]) {
-            std::stringstream ss((std::string)cols);
-            std::string key;
-            ULONG64 value = 0;
-            ss >> key >> value;
-            SAOFU_TRY({ marquee.invoke_method(key, value, param); });
-        }
-    }
-}
 
 int main() {
     SetConsoleOutputCP(65001);
@@ -333,6 +309,32 @@ int main() {
     marquee.screen_clear();
 
     while (1) {
-        marquee_exec(json, marquee);
+        for (auto& row : json["exec"]) {
+            Json effect = row["effect"];
+            DisplayConfig config;
+
+            config.ws = SaoFU::get_time(SaoFU::utf8_to_utf16(row["str"]).c_str());
+            config.screen_width = width;
+            config.step = effect["step"];
+            config.time = effect["time"];
+
+            DisplayConfigInitializer init(config);
+
+            std::string begin_position = effect["begin_position"];
+            std::string end_position = effect["end_position"];
+            std::string clear_text = effect["clear_text_region"];
+
+            config.x_offset = find_or_predict(init.begin_position, begin_position.c_str(), atoi);
+            config.x_end = find_or_predict(init.end_position, end_position.c_str(), atoi);
+            config.screen_clear_method = find_or_predict(init.clear_method, clear_text);
+
+            for (auto& cols : row["run"]) {
+                std::stringstream ss((std::string)cols);
+                std::string key;
+                ULONG64 value = 0;
+                ss >> key >> value;
+                SAOFU_TRY({ marquee.invoke_method(key, value, config); });
+            }
+        }
     }
 }

@@ -18,43 +18,6 @@ namespace SaoFU {
         return std::wstring(((width - count_size) / 16) + 1, L' ');
     }
 
-    void draw_text(Font* font, Param* param, wchar_t* screen) {
-        const int& glyph_width = param->glyph_width;
-
-        const int& y_begin = param->y_begin;
-        const int& y_end = param->y_end;
-        const int& y_offset = param->y_offset;
-
-        const int& x_offset = param->x_offset;
-        const int& width = param->screen_width;
-
-        int start = 0;
-        for (auto& ch : param->ws) {
-            bool is_half_width = false;
-
-            // 畫出一個字元
-            for (int row = y_begin; row < y_end; row++) {
-                for (int j = 0, pos = 0; j < 16; j++, pos += param->glyph_width_offset) {
-                    // 超出畫面寬度就不用繼續畫了
-                    bool in_max_range = start + pos + x_offset < width;
-                    bool in_min_range = start + pos + x_offset >= 0;
-
-                    if (in_max_range && in_min_range) {
-                        screen[start + (row * width + pos) + x_offset] = font[ch][row - y_offset] & (0x8000 >> j) ? param->fill_char : param->background;
-                    }
-                }
-            }
-
-            for (int row = 0; row < param->glyph_height; row++) {
-                // 判斷是否為半形字元(字元另一半是空的)
-                is_half_width |= font[ch][row] & 0xFF;
-            }
-
-            // 計算下一個字元的起始位置
-            start += (is_half_width ? glyph_width : glyph_width / 2);
-        }
-    }
-
     std::wstring get_time(const wchar_t* fmt) {
         wchar_t wbuf[100]; // Assuming a fixed buffer size for simplicity, adjust as needed
         time_t now = time(0);
