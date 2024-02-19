@@ -26,10 +26,36 @@ private:
     wchar_t* screen;
     Font* font;
     HANDLE hConsole;
+
+    using MemberFunctionPointer = std::function<void(std::any, Param& param)>;
+    using MethodMap = std::map<std::string, MemberFunctionPointer>;
+    MethodMap method_map;
 public:
     Marquee(int width, int height, wchar_t* screen, Font* font, HANDLE hConsole) :
-        width(width), height(height), screen(screen), font(font), hConsole(hConsole) {
+        width(width), height(height), screen(screen), font(font), hConsole(hConsole) 
+    {
         this->screen_size = width * height;
+
+        method_map["screen_clear"] = [this](std::any args, Param& param) {
+            this->screen_clear();
+        };
+
+        method_map["marquee"] = [this](std::any args, Param& param) {
+            this->marquee(param);
+        };
+
+        method_map["slide"] = [this](std::any args, Param& param) {
+            this->slide(param);
+        };
+
+        method_map["flash"] = [this](std::any args, Param& param) {
+            this->flash(param);
+        };
+
+        method_map["delay"] = [this](std::any args, Param& param) {
+            ULONG64 value = std::any_cast<ULONG64>(args);
+            this->delay(value);
+        };
     }
 
     Marquee& screen_clear() {
@@ -174,7 +200,7 @@ public:
 
         for (int i = 0; i < 16; i++) {
             clear_text_region(param, i);
-            param.y_end = i;
+            param.y_end = i + 1;
 
             SaoFU::draw_text(font, &param, screen);
             WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
@@ -192,29 +218,12 @@ public:
         return *this;
     }
 
-    using MemberFunctionPointer = std::function<void(std::any, Param& param)>;
-    using MethodMap = std::map<std::string, MemberFunctionPointer>;
     void invoke_method(const std::string& methodName, std::any args, Param& param) {
-        MethodMap functionMap = {
-            {"screen_clear", [this](std::any args, Param& param) {
-                this->screen_clear();
-            }},
-            {"marquee", [this](std::any args, Param& param) {
-                this->marquee(param);
-            }},
-            {"slide", [this](std::any args, Param& param) {
-                this->slide(param);
-            }},
-            {"flash", [this](std::any args, Param& param) {
-                this->flash(param);
-            }},
-            {"delay", [this](std::any args, Param& param) {
-                ULONG64 value = std::any_cast<ULONG64>(args);
-                this->delay(value);
-            }},
-        };
-
-        functionMap[methodName](args, param);
+        auto it = method_map.find(methodName);
+        if (it == method_map.end()) {
+            throw std::runtime_error("找不到方法: " + methodName);
+        }
+        it->second(args, param);
     }
 };
 
@@ -255,12 +264,9 @@ void marquee_exec(Json json, Marquee& marquee) {
         }
 
         param.screen_clear_method = std::map<std::string, SaoFU::utils::TextClearMethod> {
-            {"None", SaoFU::utils::TextClearMethod::None},
-            {"ClearAllText", SaoFU::utils::TextClearMethod::ClearAllText},
-            {"ClearTextItself", SaoFU::utils::TextClearMethod::ClearTextItself},
-            {"ClearTextBefore", SaoFU::utils::TextClearMethod::ClearTextBefore},
-            {"ClearTextAfter", SaoFU::utils::TextClearMethod::ClearTextAfter},
-            {"ClearAll", SaoFU::utils::TextClearMethod::ClearAll}
+            #define X(method) {#method, SaoFU::utils::TextClearMethod::method},
+                TEXT_CLEAR_METHOD_ENUM
+            #undef X
         }[row["effect"]["clear_text_region"]];
 
         for (auto& cols : row["run"]) {
@@ -268,7 +274,7 @@ void marquee_exec(Json json, Marquee& marquee) {
             std::string key;
             ULONG64 value = 0;
             ss >> key >> value;
-            marquee.invoke_method(key, value, param);
+            SAOFU_TRY({ marquee.invoke_method(key, value, param); });
         }
     }
 }
@@ -276,9 +282,12 @@ void marquee_exec(Json json, Marquee& marquee) {
 int main() {
     SetConsoleOutputCP(65001);
     system("cls");
+    Json json;
 
-    std::ifstream ifs("setting.json");
-    Json json = nlohmann::json::parse(ifs);
+    SAOFU_TRY({
+        std::ifstream ifs("setting.json");
+        json = nlohmann::json::parse(ifs);
+    })
 
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     CONSOLE_FONT_INFOEX fontInfo;
@@ -292,7 +301,15 @@ int main() {
     RECT rect = { 0, 0, 16 * 14 * 8 + 48, 32 * 7 + 64 };
     MoveWindow(GetConsoleWindow(), rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, TRUE);
 
-    FILE* fp = fopen("font/mingliu7.03/mingliu_Fixedsys_Excelsior.bin", "rb+");
+    FILE* fp = NULL;
+    std::string font_path = json["font_path"];
+    fp = fopen(font_path.c_str(), "rb+");
+
+    if (!fp) {
+        SaoFU::e_what(__LINE__, "找不到字體", 29);
+        return 0;
+    }
+
     fseek(fp, 0L, SEEK_END);
 
     int size = ftell(fp);
@@ -315,6 +332,7 @@ int main() {
     Marquee marquee(width, height, screen, pack, hConsole);
     marquee.screen_clear();
 
-    while(1)
-    marquee_exec(json, marquee);
+    while (1) {
+        marquee_exec(json, marquee);
+    }
 }

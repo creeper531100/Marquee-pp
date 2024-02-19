@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #define _CRT_SECURE_NO_WARNINGS
 
 #include <cstdint>
@@ -10,7 +10,8 @@ struct Param;
 
 #define SAOFU_EXCEPTION(hr) SaoFU::e_what(__LINE__, __FILE__, hr)
 
-#define SAOFU_TRY(fn) try fn catch(std::exception &e) { SaoFU::e_what(__LINE__, e.what(), 2); }
+#define SAOFU_TRY(fn) try fn catch(std::exception &e) { \
+    SaoFU::e_what(__LINE__, e.what(), 2); }
 
 namespace SaoFU {
     std::wstring count_space(int count_size, int width);
@@ -19,6 +20,8 @@ namespace SaoFU {
     std::wstring get_time(const wchar_t* fmt);
     std::wstring utf8_to_utf16(const std::string& str);
     std::string utf16_to_utf8(const std::wstring& utf16String);
+
+    long e_what(int line, const char* file, long hr);
 
     constexpr int count_size(std::wstring_view show) {
         int end = 0;
@@ -29,38 +32,40 @@ namespace SaoFU {
     }
 }
 
+#define TEXT_CLEAR_METHOD_ENUM \
+    X(None) \
+    X(ClearAll) \
+    X(ClearAllText) \
+    X(ClearTextItself) \
+    X(ClearTextBefore) \
+    X(ClearTextAfter)
+
 namespace SaoFU::utils {
-    /**
-     * ªí¥Ü¤å¦r²M°£ªº¤èªkªºªTÁ|Ãş«¬¡C
-     */
     enum TextClearMethod {
-        None,                 // ¤£²M°£¤å¦r
-        ClearAll,             // ²M°£¥ş³¡¤å¦r
-        ClearAllText,         // ²M°£©Ò¦³¤å¦r
-        ClearTextItself,      // ²M°£¤å¦r¥»¨­
-        ClearTextBefore,      // ²M°£¤å¦r¤§«eªº³¡¤À
-        ClearTextAfter        // ²M°£¤å¦r¤§«áªº³¡¤À
+        #define X(method) method,
+                TEXT_CLEAR_METHOD_ENUM
+        #undef X
     };
 }
 
 struct Param {
-    std::wstring ws; //¦r¦ê
-    int screen_width; //½w½Ä°Ï¤j¤p
+    std::wstring ws; //å­—ä¸²
+    int screen_width; //ç·©è¡å€å¤§å°
 
-    int x_begin = 0; //¤å¦r¦b¿Ã¹õ¤W°_©lx®y¼Ğ
-    int x_end = screen_width; //¤å¦r¦b¿Ã¹õ¤WºI¤îx®y¼Ğ
-    int x_offset = 0; //¤å¦r¦b¿Ã¹õx°¾²¾¦ì¸m
+    int x_begin = 0; //æ–‡å­—åœ¨è¢å¹•ä¸Šèµ·å§‹xåº§æ¨™
+    int x_end = screen_width; //æ–‡å­—åœ¨è¢å¹•ä¸Šæˆªæ­¢xåº§æ¨™
+    int x_offset = 0; //æ–‡å­—åœ¨è¢å¹•xåç§»ä½ç½®
 
-    int glyph_height = 16; //¦r§Îªº°ª«×(¥ş¼e16¡B¥b¼e16)
-    int glyph_width = 32; //¦r§Îªº¼e«×(¥ş¼e32¡B¥b¼e16)
-    int glyph_width_offset = 2; //¦r§Î¼e«×ªº°¾²¾¶q
+    int glyph_height = 16; //å­—å½¢çš„é«˜åº¦(å…¨å¯¬16ã€åŠå¯¬16)
+    int glyph_width = 32; //å­—å½¢çš„å¯¬åº¦(å…¨å¯¬32ã€åŠå¯¬16)
+    int glyph_width_offset = 2; //å­—å½¢å¯¬åº¦çš„åç§»é‡
 
-    wchar_t fill_char = L'¢i'; //¤å¦r¶ñº¡³¡¤Àªº²Å¸¹
-    wchar_t background = L' '; //¤å¦r¥¼¶ñº¡³¡¤Àªº­I´º²Å¸¹
+    wchar_t fill_char = L'â–ˆ'; //æ–‡å­—å¡«æ»¿éƒ¨åˆ†çš„ç¬¦è™Ÿ
+    wchar_t background = L' '; //æ–‡å­—æœªå¡«æ»¿éƒ¨åˆ†çš„èƒŒæ™¯ç¬¦è™Ÿ
 
-    int y_begin = 0; //¤å¦r¦b¿Ã¹õ¤W°_©ly®y¼Ğ
-    int y_end = 16; //¤å¦r¦b¿Ã¹õ¤WºI¤îy®y¼Ğ
-    int y_offset = 0; //¤å¦r¦b¿Ã¹õy°¾²¾¦ì¸m
+    int y_begin = 0; //æ–‡å­—åœ¨è¢å¹•ä¸Šèµ·å§‹yåº§æ¨™
+    int y_end = 16; //æ–‡å­—åœ¨è¢å¹•ä¸Šæˆªæ­¢yåº§æ¨™
+    int y_offset = 0; //æ–‡å­—åœ¨è¢å¹•yåç§»ä½ç½®
 
     int step = 1;
     int time = 1;
