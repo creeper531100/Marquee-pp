@@ -57,13 +57,14 @@ private:
     Font* font;
     HANDLE hConsole;
 
-    //這個請依照順序排列!!!
-    const std::vector<std::string> methods = { 
-        "screen_clear",
-        "marquee",
-        "slide",
-        "flash",
-        "delay"
+    using FunctionPtr = void (Marquee::*)(uintptr_t);
+
+    std::map<std::string, FunctionPtr> methods = {
+        { "screen_clear", (FunctionPtr)&Marquee::screen_clear },
+        { "marquee"     , (FunctionPtr)&Marquee::marquee },
+        { "slide"       , (FunctionPtr)&Marquee::slide },
+        { "flash"       , (FunctionPtr)&Marquee::flash },
+        { "delay"       , (FunctionPtr)&Marquee::delay }
     };
 
 public:
@@ -73,7 +74,7 @@ public:
         this->screen_size = width * height;
     }
 
-    virtual void screen_clear() {
+    void screen_clear() {
         DWORD dwBytesWritten;
         memset(screen, 0, screen_size * sizeof(wchar_t));
         WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
@@ -89,7 +90,7 @@ public:
      *  其他參數說明
      *  @config config uint64_t delay_time 休眠時間
      */
-    virtual void marquee(DisplayConfig& config) {
+    void marquee(DisplayConfig& config) {
         DWORD dwBytesWritten;
 
         config.y_begin = 0;
@@ -116,7 +117,7 @@ public:
      *  其他參數說明
      *  @config config uint64_t delay_time 休眠時間
      */
-    virtual void slide(DisplayConfig& config) {
+    void slide(DisplayConfig& config) {
         DWORD dwBytesWritten;
         config.y_end = 16;
 
@@ -156,7 +157,7 @@ public:
      *  其他參數說明
      *  @config config uint64_t delay_time 休眠時間
      */
-    virtual void flash(DisplayConfig& config) {
+    void flash(DisplayConfig& config) {
         DWORD dwBytesWritten;
         config.y_begin = 0;
         config.y_offset = 0;
@@ -174,7 +175,7 @@ public:
         }
     }
 
-    virtual void delay(int time) {
+    void delay(int time) {
         std::this_thread::sleep_for(std::chrono::milliseconds(time));
     }
 
@@ -226,16 +227,12 @@ public:
         return region;
     }
 
-    //這樣寫應該會被扁
     void invoke_method(const std::string& methodName, ULONG64 param) {
-        const uintptr_t* vtable = *(uintptr_t**)this;
-        const auto it = std::find(methods.begin(), methods.end(), methodName);
-
-        if (it != methods.end()) {
-            const int index = std::distance(methods.begin(), it);
-            MethodHandler method = (MethodHandler)vtable[index];
-            method(this, param);
+        auto it = methods.find(methodName);
+        if (it == methods.end()) {
+            throw std::runtime_error("找不到方法: " + methodName);
         }
+        (this->*methods[methodName])(param);
     }
 };
 
