@@ -57,8 +57,15 @@ private:
     Font* font;
     HANDLE hConsole;
 
-    //這個順序不能變!!!
-    const std::vector<std::string> methods = { "screen_clear", "marquee", "slide", "flash", "delay" };
+    //這個請依照順序排列!!!
+    const std::vector<std::string> methods = { 
+        "screen_clear",
+        "marquee",
+        "slide",
+        "flash",
+        "delay"
+    };
+
 public:
     Marquee(int width, int height, wchar_t* screen, Font* font, HANDLE hConsole) :
         width(width), height(height), screen(screen), font(font), hConsole(hConsole) 
