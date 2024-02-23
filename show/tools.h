@@ -99,21 +99,17 @@ struct DisplayConfigInitializer {
             { "ClearTextBefore", SaoFU::utils::TextClearMethod::ClearTextBefore },
             { "ClearTextAfter", SaoFU::utils::TextClearMethod::ClearTextAfter },
         };
+
+        
     };
 };
 
 template<typename It, typename Val, typename Pred>
 int find_or_predict(It it, Val value, Pred pred) {
-    if (it.find(value) != it.end()) {
-        return it[value];
-    }
-    return pred(value);
+    return it.find(value) != it.end() ? it[value] : pred(value);
 }
 
 template<typename It, typename Val>
 int find_or_predict(It it, Val value) {
-    if (it.find(value) != it.end()) {
-        return it[value];
-    }
-    return 0;
+    return it.find(value) != it.end() ? it[value] : 0;
 }

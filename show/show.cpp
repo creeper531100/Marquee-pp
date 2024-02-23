@@ -7,6 +7,7 @@
 #include <thread>
 #include <windows.h>
 #include <sstream>
+#include <set>
 
 void draw_text(Font* font, DisplayConfig* param, wchar_t* screen) {
     const int& glyph_width = param->glyph_width;
@@ -45,52 +46,142 @@ void draw_text(Font* font, DisplayConfig* param, wchar_t* screen) {
     }
 }
 
+
 class Marquee {
 public:
     const int width;
     const int height;
 private:
+    using MethodHandler = void(*)(void*, uintptr_t);
     size_t screen_size;
     wchar_t* screen;
     Font* font;
     HANDLE hConsole;
 
-    using MemberFunctionPointer = std::function<void(std::any, DisplayConfig& config)>;
-    using MethodMap = std::map<std::string, MemberFunctionPointer>;
-    MethodMap method_map;
+    //這個順序不能變!!!
+    std::set<std::string> methods;
 public:
     Marquee(int width, int height, wchar_t* screen, Font* font, HANDLE hConsole) :
         width(width), height(height), screen(screen), font(font), hConsole(hConsole) 
     {
         this->screen_size = width * height;
-
-        method_map["screen_clear"] = [this](std::any args, DisplayConfig& config) {
-            this->screen_clear();
-        };
-
-        method_map["marquee"] = [this](std::any args, DisplayConfig& config) {
-            this->marquee(config);
-        };
-
-        method_map["slide"] = [this](std::any args, DisplayConfig& config) {
-            this->slide(config);
-        };
-
-        method_map["flash"] = [this](std::any args, DisplayConfig& config) {
-            this->flash(config);
-        };
-
-        method_map["delay"] = [this](std::any args, DisplayConfig& config) {
-            ULONG64 value = std::any_cast<ULONG64>(args);
-            this->delay(value);
-        };
     }
 
-    Marquee& screen_clear() {
+    void register_method(const char* name) {
+        methods.insert(name);
+    }
+
+    virtual void screen_clear() {
+        register_method("screen_clear");
         DWORD dwBytesWritten;
         memset(screen, 0, screen_size * sizeof(wchar_t));
         WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
-        return *this;
+    }
+
+    //TODO 刷新偏移
+    /**
+     *  Param所需參數說明
+     *  @config config wstring ws          你要顯示的字串
+     *  @config config int x_begin         x開始位置
+     *  @config config int x_end           x截止位置
+     *  @config config int x_offset        x偏移
+     *  其他參數說明
+     *  @config config uint64_t delay_time 休眠時間
+     */
+    virtual void marquee(DisplayConfig& config) {
+        register_method("marquee");
+
+        DWORD dwBytesWritten;
+
+        config.y_begin = 0;
+        config.y_end = 16;
+        config.y_offset = 0;
+
+        for (int i = config.x_offset; i >= config.x_end; i--) {
+            memset(screen, 0, screen_size * sizeof(wchar_t));
+            config.x_offset = i;
+
+            draw_text(font, &config, screen);
+            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
+
+            if (i % config.step == 0) {
+                delay(config.time);
+            }
+        }
+    }
+
+    /**
+     *  Param所需參數說明
+     *  @config config wstring ws          你要顯示的字串
+     *  @config config int x_offset        x偏移
+     *  其他參數說明
+     *  @config config uint64_t delay_time 休眠時間
+     */
+    virtual void slide(DisplayConfig& config) {
+        register_method("slide");
+
+        DWORD dwBytesWritten;
+        config.y_end = 16;
+
+        for (int i = 0; i < 16; i++) {
+            for (int j = 0; j < 15; j++) {
+                auto region = clear_text_region(config, j, false);
+                memmove(screen + (width * j) + region.first, screen + (width * (j + 1)) + region.first,
+                    region.second * sizeof(wchar_t));
+                memset(screen + ((15 - i) * width) + region.first, 0, region.second * sizeof(wchar_t));
+            }
+
+            /*
+             * 可以方便的將每一列往前移動一行，但不能控制偏移
+             * memmove(screen, screen + width, (width * 15) * sizeof(wchar_t));
+             * memset(screen + ((15 - i) * width), 0, width * sizeof(wchar_t));
+             */
+
+            config.y_begin = 15 - i;
+            config.y_offset = 15 - i;
+
+            draw_text(font, &config, screen);
+
+            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
+
+            if (i % config.step == 0) {
+                delay(config.time);
+            }
+        }
+    }
+
+    /**
+     *  Param所需參數說明
+     *  @config config wstring ws          你要顯示的字串
+     *  @config config int x_begin         x開始位置
+     *  @config config int x_end           x截止位置
+     *  @config config int x_offset        x偏移
+     *  其他參數說明
+     *  @config config uint64_t delay_time 休眠時間
+     */
+    virtual void flash(DisplayConfig& config) {
+        register_method("flash");
+
+        DWORD dwBytesWritten;
+        config.y_begin = 0;
+        config.y_offset = 0;
+
+        for (int i = 0; i < 16; i++) {
+            clear_text_region(config, i);
+            config.y_end = i + 1;
+
+            draw_text(font, &config, screen);
+            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
+
+            if (i % config.step == 0) {
+                delay(config.time);
+            }
+        }
+    }
+
+    virtual void delay(int time) {
+        register_method("delay");
+        std::this_thread::sleep_for(std::chrono::milliseconds(time));
     }
 
     /**
@@ -141,117 +232,16 @@ public:
         return region;
     }
 
-    //TODO 刷新偏移
-    /**
-     *  Param所需參數說明
-     *  @config config wstring ws          你要顯示的字串
-     *  @config config int x_begin         x開始位置
-     *  @config config int x_end           x截止位置
-     *  @config config int x_offset        x偏移
-     *  其他參數說明
-     *  @config config uint64_t delay_time 休眠時間
-     */
-    Marquee& marquee(DisplayConfig& config) {
-        DWORD dwBytesWritten;
+    //這樣寫應該會被扁
+    void invoke_method(const std::string& methodName, ULONG64 param) {
+        const uintptr_t* vptr = *(uintptr_t**)this;
+        const auto it = std::find(methods.begin(), methods.end(), methodName);
 
-        config.y_begin = 0;
-        config.y_end = 16;
-        config.y_offset = 0;
-
-        for (int i = config.x_offset; i >= config.x_end; i--) {
-            memset(screen, 0, screen_size * sizeof(wchar_t));
-            config.x_offset = i;
-
-            draw_text(font, &config, screen);
-            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
-
-            if (i % config.step == 0) {
-                delay(config.time);
-            }
+        if (it != methods.end()) {
+            const int index = std::distance(methods.begin(), it);
+            MethodHandler method = (MethodHandler)vptr[index];
+            method(this, param);
         }
-        return *this;
-    }
-
-    /**
-     *  Param所需參數說明
-     *  @config config wstring ws          你要顯示的字串
-     *  @config config int x_offset        x偏移
-     *  其他參數說明
-     *  @config config uint64_t delay_time 休眠時間
-     */
-    Marquee& slide(DisplayConfig& config) {
-        DWORD dwBytesWritten;
-        config.y_end = 16;
-
-        for (int i = 0; i < 16; i++) {
-            for (int j = 0; j < 15; j++) {
-                auto region = clear_text_region(config, j, false);
-                memmove(screen + (width * j) + region.first, screen + (width * (j + 1)) + region.first,
-                        region.second * sizeof(wchar_t));
-                memset(screen + ((15 - i) * width) + region.first, 0, region.second * sizeof(wchar_t));
-            }
-
-            /*
-             * 可以方便的將每一列往前移動一行，但不能控制偏移
-             * memmove(screen, screen + width, (width * 15) * sizeof(wchar_t)); 
-             * memset(screen + ((15 - i) * width), 0, width * sizeof(wchar_t));
-             */
-
-            config.y_begin = 15 - i;
-            config.y_offset = 15 - i;
-
-            draw_text(font, &config, screen);
-
-            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
-
-            if (i % config.step == 0) {
-                delay(config.time);
-            }
-        }
-
-        return *this;
-    }
-
-    /**
-     *  Param所需參數說明
-     *  @config config wstring ws          你要顯示的字串
-     *  @config config int x_begin         x開始位置 
-     *  @config config int x_end           x截止位置
-     *  @config config int x_offset        x偏移 
-     *  其他參數說明
-     *  @config config uint64_t delay_time 休眠時間
-     */
-    Marquee& flash(DisplayConfig& config) {
-        DWORD dwBytesWritten;
-        config.y_begin = 0;
-        config.y_offset = 0;
-
-        for (int i = 0; i < 16; i++) {
-            clear_text_region(config, i);
-            config.y_end = i + 1;
-
-            draw_text(font, &config, screen);
-            WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
-
-            if (i % config.step == 0) {
-                delay(config.time);
-            }
-        }
-
-        return *this;
-    }
-
-    Marquee& delay(int time) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(time));
-        return *this;
-    }
-
-    void invoke_method(const std::string& methodName, std::any args, DisplayConfig& config) {
-        auto it = method_map.find(methodName);
-        if (it == method_map.end()) {
-            throw std::runtime_error("找不到方法: " + methodName);
-        }
-        it->second(args, config);
     }
 };
 
@@ -306,6 +296,7 @@ int main() {
 
     wchar_t* screen = new wchar_t[screen_size];
     Marquee marquee(width, height, screen, pack, hConsole);
+
     marquee.screen_clear();
 
     while (1) {
@@ -333,7 +324,8 @@ int main() {
                 std::string key;
                 ULONG64 value = 0;
                 ss >> key >> value;
-                SAOFU_TRY({ marquee.invoke_method(key, value, config); });
+                value = (!value) ? (ULONG64)&config : value;
+                SAOFU_TRY({ marquee.invoke_method(key, value); });
             }
         }
     }
