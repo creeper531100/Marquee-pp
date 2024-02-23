@@ -51,20 +51,18 @@ public:
     const int width;
     const int height;
 private:
-    using MethodHandler = void(*)(void*, uintptr_t);
     size_t screen_size;
     wchar_t* screen;
     Font* font;
     HANDLE hConsole;
 
-    using FunctionPtr = void (Marquee::*)(uintptr_t);
-
-    std::map<std::string, FunctionPtr> methods = {
-        { "screen_clear", (FunctionPtr)&Marquee::screen_clear },
-        { "marquee"     , (FunctionPtr)&Marquee::marquee },
-        { "slide"       , (FunctionPtr)&Marquee::slide },
-        { "flash"       , (FunctionPtr)&Marquee::flash },
-        { "delay"       , (FunctionPtr)&Marquee::delay }
+    using MethodHandler = void(Marquee::*)(uintptr_t);
+    std::map<std::string, MethodHandler> methods = {
+        { "screen_clear", (MethodHandler)&Marquee::screen_clear },
+        { "marquee"     , (MethodHandler)&Marquee::marquee },
+        { "slide"       , (MethodHandler)&Marquee::slide },
+        { "flash"       , (MethodHandler)&Marquee::flash },
+        { "delay"       , (MethodHandler)&Marquee::delay }
     };
 
 public:
