@@ -7,7 +7,6 @@
 #include <thread>
 #include <windows.h>
 #include <sstream>
-#include <set>
 
 void draw_text(Font* font, DisplayConfig* param, wchar_t* screen) {
     const int& glyph_width = param->glyph_width;
@@ -59,7 +58,7 @@ private:
     HANDLE hConsole;
 
     //這個順序不能變!!!
-    std::set<std::string> methods;
+    const std::vector<std::string> methods = { "screen_clear", "marquee", "slide", "flash", "delay" };
 public:
     Marquee(int width, int height, wchar_t* screen, Font* font, HANDLE hConsole) :
         width(width), height(height), screen(screen), font(font), hConsole(hConsole) 
@@ -67,12 +66,7 @@ public:
         this->screen_size = width * height;
     }
 
-    void register_method(const char* name) {
-        methods.insert(name);
-    }
-
     virtual void screen_clear() {
-        register_method("screen_clear");
         DWORD dwBytesWritten;
         memset(screen, 0, screen_size * sizeof(wchar_t));
         WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
@@ -89,8 +83,6 @@ public:
      *  @config config uint64_t delay_time 休眠時間
      */
     virtual void marquee(DisplayConfig& config) {
-        register_method("marquee");
-
         DWORD dwBytesWritten;
 
         config.y_begin = 0;
@@ -118,8 +110,6 @@ public:
      *  @config config uint64_t delay_time 休眠時間
      */
     virtual void slide(DisplayConfig& config) {
-        register_method("slide");
-
         DWORD dwBytesWritten;
         config.y_end = 16;
 
@@ -160,8 +150,6 @@ public:
      *  @config config uint64_t delay_time 休眠時間
      */
     virtual void flash(DisplayConfig& config) {
-        register_method("flash");
-
         DWORD dwBytesWritten;
         config.y_begin = 0;
         config.y_offset = 0;
@@ -180,7 +168,6 @@ public:
     }
 
     virtual void delay(int time) {
-        register_method("delay");
         std::this_thread::sleep_for(std::chrono::milliseconds(time));
     }
 
@@ -234,12 +221,12 @@ public:
 
     //這樣寫應該會被扁
     void invoke_method(const std::string& methodName, ULONG64 param) {
-        const uintptr_t* vptr = *(uintptr_t**)this;
+        const uintptr_t* vtable = *(uintptr_t**)this;
         const auto it = std::find(methods.begin(), methods.end(), methodName);
 
         if (it != methods.end()) {
             const int index = std::distance(methods.begin(), it);
-            MethodHandler method = (MethodHandler)vptr[index];
+            MethodHandler method = (MethodHandler)vtable[index];
             method(this, param);
         }
     }

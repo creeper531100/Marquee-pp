@@ -99,8 +99,6 @@ struct DisplayConfigInitializer {
             { "ClearTextBefore", SaoFU::utils::TextClearMethod::ClearTextBefore },
             { "ClearTextAfter", SaoFU::utils::TextClearMethod::ClearTextAfter },
         };
-
-        
     };
 };
 
