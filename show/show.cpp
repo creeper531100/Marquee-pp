@@ -333,7 +333,6 @@ int main() {
             Json effect = row["effect"];
             DisplayConfig config;
             config.screen_width = width;
-
             display_config_init(row, config);
 
             for (auto& cols : row["run"]) {
