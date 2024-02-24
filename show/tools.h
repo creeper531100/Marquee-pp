@@ -92,6 +92,74 @@ struct DisplayConfigInitializer {
     };
 };
 
+template <typename T>
+class Variant {
+public:
+    union Parma {
+        uint64_t ptr;
+        uint32_t has_value[2];
+        T* str;
+    };
+
+    Parma value;
+
+    Variant() {
+        this->value.ptr = 0;
+    }
+
+    Variant(uint64_t value) {
+        this->value.ptr = value;
+    }
+
+    bool operator==(const Variant& other) const {
+        return value.ptr == other.value.ptr;
+    }
+
+    bool hasValue() { // Changed the name to avoid conflict
+        return value.has_value[1];
+    }
+
+    T get() {
+        return *value.str;
+    }
+
+    uint64_t get_ptr() {
+        return value.ptr;
+    }
+};
+
+template <typename T>
+class Maybe {
+public:
+    T value;
+
+    Maybe(T value) : value(value) {}
+
+    static Maybe<T> just(T value) {
+        return Maybe<T>(value);
+    }
+
+    static Maybe<T> nothing() {
+        return Maybe<T>(T());
+    }
+
+    template <typename U>
+    Maybe<U> map(std::function<U(T)> fn) {
+        if (this->value == T()) {
+            return Maybe<U>::nothing();
+        }
+        return Maybe<U>::just(fn(this->value));
+    }
+
+    T or_default(T default_v) {
+        return this->value == T() ? default_v : this->value;
+    }
+};
+
+uintptr_t is_ptr(Variant<std::string> str);
+uintptr_t is_empty1(std::string* str);
+int ConvertToInt(uintptr_t str);
+
 template<typename It, typename Val, typename Pred>
 int find_or_predict(It it, Val value, Pred pred) {
     return it.find(value) != it.end() ? it[value] : pred(value);

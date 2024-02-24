@@ -80,3 +80,22 @@ namespace SaoFU {
         return hr;
     }
 }
+
+uintptr_t is_ptr(Variant<std::string> str) { // Accepts Bello<T> instead of Bello<std::string>
+    if (str.hasValue()) { // Changed to hasValue() to avoid conflict
+        return str.get_ptr(); // Returning ptr if not a string pointer
+    }
+    return 0;
+}
+
+uintptr_t is_empty1(std::string* str) {
+    if (str->empty()) {
+        return 0;
+    }
+    return (uintptr_t)str;
+}
+
+int ConvertToInt(uintptr_t str) { // Accepts Bello<T> instead of Bello<std::string>
+    std::string astr = *(std::string*)str;
+    return std::stoi(astr);
+}

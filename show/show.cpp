@@ -5,6 +5,8 @@
 
 #include <iostream>
 #include <thread>
+#include "fmt/format.h"
+
 #include <windows.h>
 #include <sstream>
 #include "magic_enum/magic_enum.hpp"
@@ -47,7 +49,6 @@ void draw_text(Font* font, DisplayConfig* param, wchar_t* screen) {
     }
 }
 
-
 class Marquee {
 public:
     const int width;
@@ -64,7 +65,7 @@ private:
         marquee, 
         slide, 
         flash, 
-        delay 
+        delay
     };
 
     using MethodHandler = void(*)(void*, uintptr_t);
@@ -176,7 +177,15 @@ public:
         }
     }
 
-    virtual void delay(int time) {
+    virtual void delay(uint64_t param) {
+        Variant<std::string> hi(param);
+        Maybe<Variant<std::string>> maybe_int(hi);
+
+        int time = maybe_int
+            .map<uintptr_t>(is_ptr)
+            .map<int>(ConvertToInt)
+            .or_default(param);
+
         std::this_thread::sleep_for(std::chrono::milliseconds(time));
     }
 
@@ -337,11 +346,18 @@ int main() {
 
             for (auto& cols : row["run"]) {
                 std::stringstream ss((std::string)cols);
-                std::string key;
-                ULONG64 value = 0;
+                std::string key = "";
+                std::string value = "";
+
                 ss >> key >> value;
-                value = (!value) ? (ULONG64)&config : value;
-                SAOFU_TRY({ marquee.invoke_method(key, value); });
+
+                Maybe<std::string*> maybe_int(&value);
+
+                uintptr_t ptr = maybe_int
+                    .map<uintptr_t>(is_empty1)
+                    .or_default((uintptr_t)&config);
+
+                marquee.invoke_method(key, ptr);
             }
         }
     }
