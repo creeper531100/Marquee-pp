@@ -34,7 +34,7 @@ namespace SaoFU {
 }
 
 namespace SaoFU::utils {
-    enum TextClearMethod {
+    enum class TextClearMethod {
         None, 
         ClearAll,
         ClearAllText,
@@ -42,8 +42,8 @@ namespace SaoFU::utils {
         ClearTextBefore,
         ClearTextAfter,
     };
-    using CategoryToValueMap = std::map<std::string, int>;
-    using TextClearMethodMap = std::map<std::string, TextClearMethod>;
+
+    using CategoryToValueMap = std::unordered_map<std::string, int>;
 }
 
 struct DisplayConfig {
@@ -68,17 +68,16 @@ struct DisplayConfig {
     int step = 1;
     int time = 1;
 
-    int screen_clear_method = SaoFU::utils::TextClearMethod::ClearAllText;
+    SaoFU::utils::TextClearMethod clear_text_region = SaoFU::utils::TextClearMethod::ClearAllText;
 };
 
 struct DisplayConfigInitializer {
     DisplayConfig param;
-    SaoFU::utils::CategoryToValueMap begin_position;
+    SaoFU::utils::CategoryToValueMap offset_position;
     SaoFU::utils::CategoryToValueMap end_position;
-    SaoFU::utils::TextClearMethodMap clear_method;
 
     DisplayConfigInitializer(DisplayConfig& param) : param(param) {
-        begin_position = {
+        offset_position = {
             { "begin", 0},
             { "center", (param.screen_width / 2) - (SaoFU::count_size(param.ws) / 2) },
             { "end", param.screen_width }
@@ -90,24 +89,10 @@ struct DisplayConfigInitializer {
             {"end", param.screen_width },
             {"last_char",-SaoFU::count_size(param.ws) }
         };
-
-        clear_method = {
-            { "None", SaoFU::utils::TextClearMethod::None},
-            { "ClearAll", SaoFU::utils::TextClearMethod::ClearAll },
-            { "ClearAllText", SaoFU::utils::TextClearMethod::ClearAllText },
-            { "ClearTextItself", SaoFU::utils::TextClearMethod::ClearTextItself },
-            { "ClearTextBefore", SaoFU::utils::TextClearMethod::ClearTextBefore },
-            { "ClearTextAfter", SaoFU::utils::TextClearMethod::ClearTextAfter },
-        };
     };
 };
 
 template<typename It, typename Val, typename Pred>
 int find_or_predict(It it, Val value, Pred pred) {
     return it.find(value) != it.end() ? it[value] : pred(value);
-}
-
-template<typename It, typename Val>
-int find_or_predict(It it, Val value) {
-    return it.find(value) != it.end() ? it[value] : 0;
 }
