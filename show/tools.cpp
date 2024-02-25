@@ -104,7 +104,7 @@ Maybe<uintptr_t> is_ptr(Variant<std::string> str) { // Accepts Bello<T> instead 
     return Maybe<uintptr_t>();
 }
 
-Maybe<uintptr_t> is_empty1(std::string* str) {
+Maybe<uintptr_t> has_param(std::string* str) {
     if (!str->empty()) {
         return (uintptr_t)str;
     }

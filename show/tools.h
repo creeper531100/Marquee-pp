@@ -132,7 +132,7 @@ public:
 
 Maybe<int> get_category(DisplayConfig& param, std::string value);
 Maybe<uintptr_t> is_ptr(Variant<std::string> str);
-Maybe<uintptr_t> is_empty1(std::string* str);
+Maybe<uintptr_t> has_param(std::string* str);
 Maybe<int> ConvertToInt(uintptr_t str);
 
 template<typename It, typename Val, typename Pred>

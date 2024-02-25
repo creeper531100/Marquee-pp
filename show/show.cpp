@@ -352,7 +352,7 @@ int main() {
 
                 ss >> key >> value;
 
-                uintptr_t ptr = is_empty1(&value).value_or((uintptr_t)&config);
+                uintptr_t ptr = has_param(&value).value_or((uintptr_t)&config);
 
                 marquee.invoke_method(key, ptr);
             }
