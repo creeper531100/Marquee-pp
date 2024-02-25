@@ -30,7 +30,7 @@ namespace SaoFU {
             return std::wstring();
 
         size_t charsNeeded = ::MultiByteToWideChar(CP_UTF8, 0,
-                                                   str.data(), (int)str.size(), NULL, 0);
+            str.data(), (int)str.size(), NULL, 0);
         if (charsNeeded == 0) {
             //e_what(__LINE__, "Failed converting UTF-8 string to UTF-16", 15);
             throw std::runtime_error("Failed converting UTF-8 string to UTF-16");
@@ -38,7 +38,7 @@ namespace SaoFU {
 
         std::vector<wchar_t> buffer(charsNeeded);
         int charsConverted = ::MultiByteToWideChar(CP_UTF8, 0,
-                                                   str.data(), (int)str.size(), &buffer[0], buffer.size());
+            str.data(), (int)str.size(), &buffer[0], buffer.size());
         if (charsConverted == 0) {
             //e_what(__LINE__, "Failed converting UTF-8 string to UTF-16", 15);
             throw std::runtime_error("Failed converting UTF-8 string to UTF-16");
@@ -69,7 +69,7 @@ namespace SaoFU {
             (LPSTR)&p_msgbuf, 0, NULL
         );
 
-        char buf[100] = {'\0'};
+        char buf[100] = { '\0' };
         if (msg_len) {
             sprintf(buf, "%s\n\"%s\"\n[line] %d\n[code] 0x%08X\n", p_msgbuf, file, line, hr);
         }

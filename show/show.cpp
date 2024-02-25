@@ -13,7 +13,9 @@
 
 
 void draw_text(Font* font, DisplayConfig* param, wchar_t* screen) {
-    const int& glyph_width = param->glyph_width;
+
+    const int& glyph_width = 16 * param->glyph_width_factor;
+    const int glyph_height = param->glyph_height;
 
     const int& y_begin = param->y_begin;
     const int& y_end = param->y_end;
@@ -23,18 +25,21 @@ void draw_text(Font* font, DisplayConfig* param, wchar_t* screen) {
     const int& width = param->screen_width;
 
     int start = 0;
-    for (auto& ch : param->ws) {
+
+    for (int i = 0; i < param->ws.length(); i++) {
         bool is_half_width = false;
+        wchar_t ch = param->ws[i];
 
         // 畫出一個字元
         for (int row = y_begin; row < y_end; row++) {
-            for (int j = 0, pos = 0; j < 16; j++, pos += param->glyph_width_offset) {
+            for (int cols = 0; cols < glyph_width; cols += param->glyph_width_offset) {
                 // 超出畫面寬度就不用繼續畫了
-                bool in_max_range = start + pos + x_offset < width;
-                bool in_min_range = start + pos + x_offset >= 0;
+                bool in_max_range = start + cols + x_offset < width;
+                bool in_min_range = start + cols + x_offset >= 0;
 
                 if (in_max_range && in_min_range) {
-                    screen[start + (row * width + pos) + x_offset] = font[ch][row - y_offset] & (0x8000 >> j) ? param->fill_char : param->background;
+                    bool b = font[ch][row - y_offset] & 0x8000 >> cols / param->glyph_width_factor;
+                    screen[x_offset + start + (row * width + cols)] = b ? param->fill_char : param->background;
                 }
             }
         }
@@ -78,7 +83,7 @@ public:
 
     virtual void screen_clear() {
         DWORD dwBytesWritten;
-        memset(screen, 0, screen_size * sizeof(wchar_t));
+        wmemset(screen, L' ', screen_size);
         WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
     }
 
@@ -100,7 +105,7 @@ public:
         config.y_offset = 0;
 
         for (int i = config.x_offset; i >= config.x_end; i--) {
-            memset(screen, 0, screen_size * sizeof(wchar_t));
+            wmemset(screen, config.background, screen_size);
             config.x_offset = i;
 
             draw_text(font, &config, screen);
@@ -126,9 +131,8 @@ public:
         for (int i = 0; i < 16; i++) {
             for (int j = 0; j < 15; j++) {
                 auto region = clear_text_region(config, j, false);
-                memmove(screen + (width * j) + region.first, screen + (width * (j + 1)) + region.first,
-                    region.second * sizeof(wchar_t));
-                memset(screen + ((15 - i) * width) + region.first, 0, region.second * sizeof(wchar_t));
+                wmemmove(screen + (width * j) + region.first, screen + (width * (j + 1)) + region.first, region.second);
+                wmemset(screen + ((15 - i) * width) + region.first, config.background, region.second);
             }
 
             /*
@@ -218,7 +222,7 @@ public:
             x_end = config.screen_width - config.x_offset;
             break;
         case SaoFU::utils::TextClearMethod::ClearAll:
-            memset(screen, 0, screen_size * sizeof(wchar_t));
+            wmemset(screen, config.background, screen_size);
             break;
         }
 
@@ -226,7 +230,7 @@ public:
         region.second = x_end;
 
         if (clear_region) {
-            memset(screen + (width * index + x_begin), 0, x_end * sizeof(wchar_t));
+            wmemset(screen + (width * index + x_begin), config.background, x_end);
         }
 
         return region;
@@ -262,26 +266,27 @@ void display_config_init(Json& j, DisplayConfig& p) {
     p.step = effect.value("step", p.step);
     p.time = effect.value("time", p.time);
 
-    std::string x_offset   = effect.value("x_offset", "begin");
-    std::string x_begin    = effect.value("x_begin", "begin");
-    std::string x_end      = effect.value("x_end", "end");
+    std::string x_offset = effect.value("x_offset", "begin");
+    std::string x_begin = effect.value("x_begin", "begin");
+    std::string x_end = effect.value("x_end", "end");
     std::string clear_text = effect.value("clear_text_region", "ClearAllText");
 
-    p.x_begin            = try_parse(x_begin).or_else(get_category, p, x_begin).value_or(0);
-    p.x_offset           = try_parse(x_offset).or_else(get_category, p, x_offset).value_or(0);
-    p.x_end              = try_parse(x_end).or_else(get_category, p, x_end).value_or(0);
-    p.clear_text_region  = magic_enum::enum_cast<SaoFU::utils::TextClearMethod>(clear_text).value();
+    p.x_begin = try_parse(x_begin).or_else(get_category, p, x_begin).value_or(0);
+    p.x_offset = try_parse(x_offset).or_else(get_category, p, x_offset).value_or(0);
+    p.x_end = try_parse(x_end).or_else(get_category, p, x_end).value_or(0);
+    p.clear_text_region = magic_enum::enum_cast<SaoFU::utils::TextClearMethod>(clear_text).value();
 
-    p.glyph_height       = effect.value("glyph_height", p.glyph_height);
-    p.glyph_width        = effect.value("glyph_width", p.glyph_width);
+    p.glyph_height = effect.value("glyph_height", p.glyph_height);
+    p.glyph_width = effect.value("glyph_width", p.glyph_width);
     p.glyph_width_offset = effect.value("glyph_width_offset", p.glyph_width_offset);
+    p.glyph_width_factor = effect.value("glyph_width_factor", p.glyph_width_factor);
 
-    p.fill_char          = effect.value("fill_char", p.fill_char);
-    p.background         = effect.value("background", p.background);
+    p.fill_char = effect.value("fill_char", p.fill_char);
+    p.background = effect.value("background", p.background);
 
-    p.y_begin            = effect.value("y_begin", p.y_begin);
-    p.y_end              = effect.value("y_end", p.y_end);
-    p.y_offset           = effect.value("y_offset", p.y_offset);
+    p.y_begin = effect.value("y_begin", p.y_begin);
+    p.y_end = effect.value("y_end", p.y_end);
+    p.y_offset = effect.value("y_offset", p.y_offset);
 }
 
 int main() {
@@ -292,7 +297,7 @@ int main() {
     SAOFU_TRY({
         std::ifstream ifs("setting.json");
         json = nlohmann::json::parse(ifs);
-    })
+        })
 
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     CONSOLE_FONT_INFOEX fontInfo;
@@ -330,7 +335,7 @@ int main() {
     GetConsoleScreenBufferInfo(hConsole, &console_buffer_info);
 
     int width = console_buffer_info.srWindow.Right - console_buffer_info.srWindow.Left + 1;
-    int height = console_buffer_info.srWindow.Bottom - console_buffer_info.srWindow.Top;
+    int height = 16;
     int screen_size = width * height;
 
     wchar_t* screen = new wchar_t[screen_size];

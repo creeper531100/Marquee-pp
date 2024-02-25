@@ -36,10 +36,10 @@ namespace SaoFU {
 
 namespace SaoFU::utils {
     enum class TextClearMethod {
-        None, 
+        None,
         ClearAll,
         ClearAllText,
-        ClearTextItself, 
+        ClearTextItself,
         ClearTextBefore,
         ClearTextAfter,
     };
@@ -58,6 +58,7 @@ struct DisplayConfig {
     int glyph_height = 16; //字形的高度(全寬16、半寬16)
     int glyph_width = 32; //字形的寬度(全寬32、半寬16)
     int glyph_width_offset = 2; //字形寬度的偏移量
+    int glyph_width_factor = 2; //字形寬度的倍數(數值越小越窄)
 
     wchar_t fill_char = L'█'; //文字填滿部分的符號
     wchar_t background = L' '; //文字未填滿部分的背景符號
