@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <string>
+#include <optional>
 #include <nlohmann/json.hpp>
 
 using Json = nlohmann::json;
@@ -71,27 +72,6 @@ struct DisplayConfig {
     SaoFU::utils::TextClearMethod clear_text_region = SaoFU::utils::TextClearMethod::ClearAllText;
 };
 
-struct DisplayConfigInitializer {
-    DisplayConfig param;
-    SaoFU::utils::CategoryToValueMap offset_position;
-    SaoFU::utils::CategoryToValueMap end_position;
-
-    DisplayConfigInitializer(DisplayConfig& param) : param(param) {
-        offset_position = {
-            { "begin", 0},
-            { "center", (param.screen_width / 2) - (SaoFU::count_size(param.ws) / 2) },
-            { "end", param.screen_width }
-        };
-
-        end_position = {
-            {"top", 0},
-            {"center", (param.screen_width / 2) - (SaoFU::count_size(param.ws) / 2)},
-            {"end", param.screen_width },
-            {"last_char",-SaoFU::count_size(param.ws) }
-        };
-    };
-};
-
 template <typename T>
 class Variant {
 public:
@@ -129,36 +109,31 @@ public:
 };
 
 template <typename T>
-class Maybe {
+class Maybe : public std::optional<T> {
 public:
-    T value;
-
-    Maybe(T value) : value(value) {}
-
-    static Maybe<T> just(T value) {
-        return Maybe<T>(value);
-    }
-
-    static Maybe<T> nothing() {
-        return Maybe<T>(T());
-    }
+    using std::optional<T>::optional;
 
     template <typename U>
-    Maybe<U> map(std::function<U(T)> fn) {
-        if (this->value == T()) {
-            return Maybe<U>::nothing();
+    Maybe<U> map(std::function<Maybe<U>(T)> fn) {
+        if (!(*this)) {
+            return Maybe<U>(); // 返回一個空的 Maybe<U>
         }
-        return Maybe<U>::just(fn(this->value));
+        return fn(**this); // 呼叫函式 fn，並返回其結果
     }
 
-    T or_default(T default_v) {
-        return this->value == T() ? default_v : this->value;
+    template <typename F, typename... Args>
+    Maybe<T> or_else(F fn, Args&&... args) {
+        if (!(*this)) {
+            return fn(std::forward<Args>(args)...); // 如果当前 Maybe 为空，则调用 fn 并返回其结果
+        }
+        return *this; // 如果当前 Maybe 不为空，则返回当前 Maybe
     }
 };
 
-uintptr_t is_ptr(Variant<std::string> str);
-uintptr_t is_empty1(std::string* str);
-int ConvertToInt(uintptr_t str);
+Maybe<int> get_category(DisplayConfig& param, std::string value);
+Maybe<uintptr_t> is_ptr(Variant<std::string> str);
+Maybe<uintptr_t> is_empty1(std::string* str);
+Maybe<int> ConvertToInt(uintptr_t str);
 
 template<typename It, typename Val, typename Pred>
 int find_or_predict(It it, Val value, Pred pred) {

@@ -60,18 +60,18 @@ private:
     HANDLE hConsole;
 
     //請依照順序，不然虛表會對齊錯誤!!!
-    enum class Methods { 
-        screen_clear, 
-        marquee, 
-        slide, 
-        flash, 
+    enum class Methods {
+        screen_clear,
+        marquee,
+        slide,
+        flash,
         delay
     };
 
     using MethodHandler = void(*)(void*, uintptr_t);
 public:
     Marquee(int width, int height, wchar_t* screen, Font* font, HANDLE hConsole) :
-        width(width), height(height), screen(screen), font(font), hConsole(hConsole) 
+        width(width), height(height), screen(screen), font(font), hConsole(hConsole)
     {
         this->screen_size = width * height;
     }
@@ -79,7 +79,7 @@ public:
     virtual void screen_clear() {
         DWORD dwBytesWritten;
         memset(screen, 0, screen_size * sizeof(wchar_t));
-        WriteConsoleOutputCharacterW(hConsole, screen, screen_size, {0, 0}, &dwBytesWritten);
+        WriteConsoleOutputCharacterW(hConsole, screen, screen_size, { 0, 0 }, &dwBytesWritten);
     }
 
     //TODO 刷新偏移
@@ -179,12 +179,7 @@ public:
 
     virtual void delay(uint64_t param) {
         Variant<std::string> hi(param);
-        Maybe<Variant<std::string>> maybe_int(hi);
-
-        int time = maybe_int
-            .map<uintptr_t>(is_ptr)
-            .map<int>(ConvertToInt)
-            .or_default(param);
+        int time = is_ptr(hi).map<int>(ConvertToInt).value_or(param);
 
         std::this_thread::sleep_for(std::chrono::milliseconds(time));
     }
@@ -251,36 +246,42 @@ public:
     }
 };
 
+Maybe<int> try_parse(std::string str) {
+    try {
+        return std::stoi(str);
+    }
+    catch (const std::exception& e) {
+        return std::nullopt;
+    }
+}
 
 void display_config_init(Json& j, DisplayConfig& p) {
     Json effect = j["effect"];
 
-    p.ws   = SaoFU::get_time(SaoFU::utf8_to_utf16(j["ws"]).c_str());
+    p.ws = SaoFU::get_time(SaoFU::utf8_to_utf16(j["ws"]).c_str());
     p.step = effect.value("step", p.step);
     p.time = effect.value("time", p.time);
-
-    DisplayConfigInitializer init(p);
 
     std::string x_offset   = effect.value("x_offset", "begin");
     std::string x_begin    = effect.value("x_begin", "begin");
     std::string x_end      = effect.value("x_end", "end");
     std::string clear_text = effect.value("clear_text_region", "ClearAllText");
 
-    p.x_begin           = find_or_predict(init.offset_position, x_begin.c_str(), atoi);
-    p.x_offset          = find_or_predict(init.offset_position, x_offset.c_str(), atoi);
-    p.x_end             = find_or_predict(init.end_position, x_end.c_str(), atoi);
-    p.clear_text_region = magic_enum::enum_cast<SaoFU::utils::TextClearMethod>(clear_text).value();
+    p.x_begin            = try_parse(x_begin).or_else(get_category, p, x_begin).value_or(0);
+    p.x_offset           = try_parse(x_offset).or_else(get_category, p, x_offset).value_or(0);
+    p.x_end              = try_parse(x_end).or_else(get_category, p, x_end).value_or(0);
+    p.clear_text_region  = magic_enum::enum_cast<SaoFU::utils::TextClearMethod>(clear_text).value();
 
     p.glyph_height       = effect.value("glyph_height", p.glyph_height);
     p.glyph_width        = effect.value("glyph_width", p.glyph_width);
     p.glyph_width_offset = effect.value("glyph_width_offset", p.glyph_width_offset);
 
-    p.fill_char         = effect.value("fill_char", p.fill_char);
-    p.background        = effect.value("background", p.background);
+    p.fill_char          = effect.value("fill_char", p.fill_char);
+    p.background         = effect.value("background", p.background);
 
-    p.y_begin           = effect.value("y_begin", p.y_begin);
-    p.y_end             = effect.value("y_end", p.y_end);
-    p.y_offset          = effect.value("y_offset", p.y_offset);
+    p.y_begin            = effect.value("y_begin", p.y_begin);
+    p.y_end              = effect.value("y_end", p.y_end);
+    p.y_offset           = effect.value("y_offset", p.y_offset);
 }
 
 int main() {
@@ -351,11 +352,7 @@ int main() {
 
                 ss >> key >> value;
 
-                Maybe<std::string*> maybe_int(&value);
-
-                uintptr_t ptr = maybe_int
-                    .map<uintptr_t>(is_empty1)
-                    .or_default((uintptr_t)&config);
+                uintptr_t ptr = is_empty1(&value).value_or((uintptr_t)&config);
 
                 marquee.invoke_method(key, ptr);
             }

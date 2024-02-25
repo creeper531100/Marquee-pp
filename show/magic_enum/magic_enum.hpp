@@ -650,31 +650,31 @@ enum class enum_subtype {
   flags
 };
 
-template <typename E, int O, enum_subtype S, typename U = std::underlying_type_t<E>>
-constexpr U ualue(std::size_t i) noexcept {
-  if constexpr (std::is_same_v<U, bool>) { // bool special case
+template <typename E, int O, enum_subtype S, typename Retn = std::underlying_type_t<E>>
+constexpr Retn ualue(std::size_t i) noexcept {
+  if constexpr (std::is_same_v<Retn, bool>) { // bool special case
     static_assert(O == 0, "magic_enum::detail::ualue requires valid offset.");
 
-    return static_cast<U>(i);
+    return static_cast<Retn>(i);
   } else if constexpr (S == enum_subtype::flags) {
-    return static_cast<U>(U{1} << static_cast<U>(static_cast<int>(i) + O));
+    return static_cast<Retn>(Retn{1} << static_cast<Retn>(static_cast<int>(i) + O));
   } else {
-    return static_cast<U>(static_cast<int>(i) + O);
+    return static_cast<Retn>(static_cast<int>(i) + O);
   }
 }
 
-template <typename E, int O, enum_subtype S, typename U = std::underlying_type_t<E>>
+template <typename E, int O, enum_subtype S, typename Retn = std::underlying_type_t<E>>
 constexpr E value(std::size_t i) noexcept {
   return static_cast<E>(ualue<E, O, S>(i));
 }
 
-template <typename E, enum_subtype S, typename U = std::underlying_type_t<E>>
+template <typename E, enum_subtype S, typename Retn = std::underlying_type_t<E>>
 constexpr int reflected_min() noexcept {
   if constexpr (S == enum_subtype::flags) {
     return 0;
   } else {
     constexpr auto lhs = range_min<E>::value;
-    constexpr auto rhs = (std::numeric_limits<U>::min)();
+    constexpr auto rhs = (std::numeric_limits<Retn>::min)();
 
     if constexpr (cmp_less(rhs, lhs)) {
       return lhs;
@@ -684,13 +684,13 @@ constexpr int reflected_min() noexcept {
   }
 }
 
-template <typename E, enum_subtype S, typename U = std::underlying_type_t<E>>
+template <typename E, enum_subtype S, typename Retn = std::underlying_type_t<E>>
 constexpr int reflected_max() noexcept {
   if constexpr (S == enum_subtype::flags) {
-    return std::numeric_limits<U>::digits - 1;
+    return std::numeric_limits<Retn>::digits - 1;
   } else {
     constexpr auto lhs = range_max<E>::value;
-    constexpr auto rhs = (std::numeric_limits<U>::max)();
+    constexpr auto rhs = (std::numeric_limits<Retn>::max)();
 
     if constexpr (cmp_less(lhs, rhs)) {
       return lhs;
@@ -766,7 +766,7 @@ constexpr auto values() noexcept {
   }
 }
 
-template <typename E, enum_subtype S, typename U = std::underlying_type_t<E>>
+template <typename E, enum_subtype S, typename Retn = std::underlying_type_t<E>>
 constexpr auto values() noexcept {
   constexpr auto min = reflected_min<E, S>();
   constexpr auto max = reflected_max<E, S>();
@@ -777,9 +777,9 @@ constexpr auto values() noexcept {
   return values<E, S, range_size, min>();
 }
 
-template <typename E, typename U = std::underlying_type_t<E>>
+template <typename E, typename Retn = std::underlying_type_t<E>>
 constexpr enum_subtype subtype(std::true_type) noexcept {
-  if constexpr (std::is_same_v<U, bool>) { // bool special case
+  if constexpr (std::is_same_v<Retn, bool>) { // bool special case
     return enum_subtype::common;
   } else if constexpr (has_is_flags<E>::value) {
     return customize::enum_range<E>::is_flags ? enum_subtype::flags : enum_subtype::common;
@@ -821,11 +821,11 @@ using values_t = decltype((values_v<D, S>));
 template <typename E, enum_subtype S>
 inline constexpr auto count_v = values_v<E, S>.size();
 
-template <typename E, enum_subtype S, typename U = std::underlying_type_t<E>>
-inline constexpr auto min_v = (count_v<E, S> > 0) ? static_cast<U>(values_v<E, S>.front()) : U{0};
+template <typename E, enum_subtype S, typename Retn = std::underlying_type_t<E>>
+inline constexpr auto min_v = (count_v<E, S> > 0) ? static_cast<Retn>(values_v<E, S>.front()) : Retn{0};
 
-template <typename E, enum_subtype S, typename U = std::underlying_type_t<E>>
-inline constexpr auto max_v = (count_v<E, S> > 0) ? static_cast<U>(values_v<E, S>.back()) : U{0};
+template <typename E, enum_subtype S, typename Retn = std::underlying_type_t<E>>
+inline constexpr auto max_v = (count_v<E, S> > 0) ? static_cast<Retn>(values_v<E, S>.back()) : Retn{0};
 
 template <typename E, enum_subtype S, std::size_t... I>
 constexpr auto names(std::index_sequence<I...>) noexcept {
@@ -851,11 +851,11 @@ inline constexpr auto entries_v = entries<E, S>(std::make_index_sequence<count_v
 template <typename E, enum_subtype S, typename D = std::decay_t<E>>
 using entries_t = decltype((entries_v<D, S>));
 
-template <typename E, enum_subtype S, typename U = std::underlying_type_t<E>>
+template <typename E, enum_subtype S, typename Retn = std::underlying_type_t<E>>
 constexpr bool is_sparse() noexcept {
   if constexpr (count_v<E, S> == 0) {
     return false;
-  } else if constexpr (std::is_same_v<U, bool>) { // bool special case
+  } else if constexpr (std::is_same_v<Retn, bool>) { // bool special case
     return false;
   } else {
     constexpr auto max = (S == enum_subtype::flags) ? log2(max_v<E, S>) : max_v<E, S>;
@@ -869,13 +869,13 @@ constexpr bool is_sparse() noexcept {
 template <typename E, enum_subtype S = subtype_v<E>>
 inline constexpr bool is_sparse_v = is_sparse<E, S>();
 
-template <typename E, enum_subtype S, typename U = std::underlying_type_t<E>>
-constexpr U values_ors() noexcept {
+template <typename E, enum_subtype S, typename Retn = std::underlying_type_t<E>>
+constexpr Retn values_ors() noexcept {
   static_assert(S == enum_subtype::flags, "magic_enum::detail::values_ors requires valid subtype.");
 
-  auto ors = U{0};
+  auto ors = Retn{0};
   for (std::size_t i = 0; i < count_v<E, S>; ++i) {
-    ors |= static_cast<U>(values_v<E, S>[i]);
+    ors |= static_cast<Retn>(values_v<E, S>[i]);
   }
 
   return ors;

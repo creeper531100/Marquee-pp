@@ -81,21 +81,37 @@ namespace SaoFU {
     }
 }
 
-uintptr_t is_ptr(Variant<std::string> str) { // Accepts Bello<T> instead of Bello<std::string>
+Maybe<int> get_category(DisplayConfig& param, std::string value) {
+    SaoFU::utils::CategoryToValueMap it = {
+        { "top", 0 },
+        { "begin", 0 },
+        { "center", (param.screen_width / 2) - (SaoFU::count_size(param.ws) / 2) },
+        { "end", param.screen_width },
+        { "last_char",-SaoFU::count_size(param.ws) }
+    };
+
+    if (it.find(value) != it.end()) {
+        return it[value];
+    };
+
+    return Maybe<int>();
+}
+
+Maybe<uintptr_t> is_ptr(Variant<std::string> str) { // Accepts Bello<T> instead of Bello<std::string>
     if (str.hasValue()) { // Changed to hasValue() to avoid conflict
         return str.get_ptr(); // Returning ptr if not a string pointer
     }
-    return 0;
+    return Maybe<uintptr_t>();
 }
 
-uintptr_t is_empty1(std::string* str) {
-    if (str->empty()) {
-        return 0;
+Maybe<uintptr_t> is_empty1(std::string* str) {
+    if (!str->empty()) {
+        return (uintptr_t)str;
     }
-    return (uintptr_t)str;
+    return Maybe<uintptr_t>();
 }
 
-int ConvertToInt(uintptr_t str) { // Accepts Bello<T> instead of Bello<std::string>
+Maybe<int> ConvertToInt(uintptr_t str) { // Accepts Bello<T> instead of Bello<std::string>
     std::string astr = *(std::string*)str;
     return std::stoi(astr);
 }
