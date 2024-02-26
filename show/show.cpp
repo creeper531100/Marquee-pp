@@ -375,7 +375,7 @@ int main() {
                 ss >> key >> value;
                 uintptr_t ptr = has_param<uintptr_t>(&value).value_or((uintptr_t)&config);
 
-                //marquee.invoke_method(key, ptr);
+                marquee.invoke_method(key, ptr);
             }
         }
     }
