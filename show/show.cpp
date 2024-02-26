@@ -183,7 +183,7 @@ public:
 
     virtual void delay(uint64_t param) {
         Variant<std::string> hi(param);
-        int time = is_ptr(hi).and_then(convert_to_int<uintptr_t>).value_or(param);
+        int time = inspect_ptr_or_string(hi).and_then(convert_to_int<uintptr_t>).value_or(param);
 
         std::this_thread::sleep_for(std::chrono::milliseconds(time));
     }
@@ -250,15 +250,6 @@ public:
     }
 };
 
-Maybe<int> try_parse(std::string str) {
-    try {
-        return std::stoi(str);
-    }
-    catch (const std::exception& e) {
-        return std::nullopt;
-    }
-}
-
 void display_config_init(Json& j, DisplayConfig& p) {
     Json effect = j["effect"];
 
@@ -271,9 +262,9 @@ void display_config_init(Json& j, DisplayConfig& p) {
     std::string x_end = effect.value("x_end", "end");
     std::string clear_text = effect.value("clear_text_region", "ClearAllText");
 
-    p.x_begin = try_parse(x_begin).or_else(get_category, p, x_begin).value_or(0);
-    p.x_offset = try_parse(x_offset).or_else(get_category, p, x_offset).value_or(0);
-    p.x_end = try_parse(x_end).or_else(get_category, p, x_end).value_or(0);
+    p.x_begin = try_parse(x_begin).or_else(resolve_keyword, p, x_begin).value_or(0);
+    p.x_offset = try_parse(x_offset).or_else(resolve_keyword, p, x_offset).value_or(0);
+    p.x_end = try_parse(x_end).or_else(resolve_keyword, p, x_end).value_or(0);
     p.clear_text_region = magic_enum::enum_cast<SaoFU::utils::TextClearMethod>(clear_text).value();
 
     p.glyph_height = effect.value("glyph_height", p.glyph_height);
@@ -293,19 +284,19 @@ int main() {
     SetConsoleOutputCP(65001);
     system("cls");
 
-    FILE* ver_fp;
+    FILE* fp = NULL;
     char ver_buffer[100] = { 0 };
     int ver;
 
-    ver_fp = _popen("powershell (Get-WmiObject Win32_OperatingSystem).Version", "r");
-    fread(ver_buffer, sizeof(ver_buffer), 1, ver_fp);
-    _pclose(ver_fp);
+    fp = _popen("powershell (Get-WmiObject Win32_OperatingSystem).Version", "r");
+    fread(ver_buffer, sizeof(ver_buffer), 1, fp);
+    _pclose(fp);
 
     sscanf_s(ver_buffer, "%*d.%*d.%d", &ver);
-    printf("%s%d\n", ver_buffer, ver);
+    printf("%s", ver_buffer);
 
     if (ver >= 22000) {
-        printf(u8"你是 windows11 請自己調整視窗大小\n", ver_buffer, ver);
+        printf(u8"windows11 請自己調整視窗大小\n", ver_buffer, ver);
         system("pause");
     }
 
@@ -328,7 +319,6 @@ int main() {
     RECT rect = { 0, 0, 16 * 14 * 8 + 48, 32 * 7 + 64 };
     MoveWindow(GetConsoleWindow(), rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, TRUE);
 
-    FILE* fp = NULL;
     std::string font_path = json["font_path"];
     fp = fopen(font_path.c_str(), "rb+");
 
@@ -373,7 +363,7 @@ int main() {
                 std::string value = "";
 
                 ss >> key >> value;
-                uintptr_t ptr = has_param<uintptr_t>(&value).value_or((uintptr_t)&config);
+                uintptr_t ptr = is_empty_string<uintptr_t>(&value).value_or((uintptr_t)&config);
 
                 marquee.invoke_method(key, ptr);
             }

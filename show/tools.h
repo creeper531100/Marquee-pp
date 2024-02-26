@@ -48,7 +48,7 @@ namespace SaoFU::utils {
         ClearTextAfter,
     };
 
-    using CategoryToValueMap = std::unordered_map<std::string, int>;
+    using KeywordReplacementMap = std::unordered_map<std::string, int>;
 }
 
 struct DisplayConfig {
@@ -138,18 +138,20 @@ public:
     }
 };
 
-Maybe<int> get_category(DisplayConfig& param, std::string value);
-Maybe<uintptr_t> is_ptr(Variant<std::string> str);
+Maybe<int> resolve_keyword(DisplayConfig& param, std::string value);
+Maybe<uintptr_t> inspect_ptr_or_string(Variant<std::string> str);
+Maybe<int> try_parse(std::string str);
 
 template<typename T>
-Maybe<T> has_param(std::string* str) {
+Maybe<T> is_empty_string(std::string* str) {
     if (!str->empty()) {
         return (T)str;
     }
-    return Maybe<T>();
+    return std::nullopt;
 }
 
 template<typename T>
 Maybe<int> convert_to_int(T str) { 
     return std::stoi(*(std::string*)str);
 }
+

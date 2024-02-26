@@ -83,35 +83,28 @@ namespace SaoFU {
     }
 }
 
-Maybe<int> calc(int pos, DisplayConfig& param) {
+Maybe<int> determine_position(int pos, DisplayConfig& param) {
     auto wstr = param.ws.substr(0, pos);
     return SaoFU::count_size(wstr);
 }
 
-Maybe<std::string*> is_select(bool sel, std::string* retn) {
-    return sel ? retn : Maybe<std::string*>();
-}
-
-Maybe<int> get_category(DisplayConfig& param, std::string value) {
+Maybe<int> resolve_keyword(DisplayConfig& param, std::string value) {
     std::stringstream ss(value);
     std::string key = "";
     std::string val = "";
     ss >> key >> val;
 
-    int center_value = is_select(key == "center", &val)
-        .and_then(has_param<std::string*>)
+    int center_value = is_empty_string<std::string*>(&val)
         .and_then(convert_to_int<std::string*>)
-        .and_then(calc, param)
+        .and_then(determine_position, param)
         .value_or(SaoFU::count_size(param.ws));
 
-
-    int char_value = is_select(key == "char", &val)
-        .and_then(has_param<std::string*>)
+    int char_value = is_empty_string<std::string*>(&val)
         .and_then(convert_to_int<std::string*>)
-        .and_then(calc, param)
+        .and_then(determine_position, param)
         .value_or(SaoFU::count_size(param.ws));
 
-    SaoFU::utils::CategoryToValueMap it = {
+    SaoFU::utils::KeywordReplacementMap it = {
         { "top", 0 },
         { "begin", 0 },
         { "center", (param.screen_width / 2) - center_value / 2},
@@ -123,12 +116,21 @@ Maybe<int> get_category(DisplayConfig& param, std::string value) {
         return it[key];
     };
 
-    return Maybe<int>();
+    return std::nullopt;
 }
 
-Maybe<uintptr_t> is_ptr(Variant<std::string> str) { // Accepts Bello<T> instead of Bello<std::string>
-    if (str.has_value()) { // Changed to hasValue() to avoid conflict
-        return str.get_ptr(); // Returning ptr if not a string pointer
+Maybe<uintptr_t> inspect_ptr_or_string(Variant<std::string> val) { 
+    if (val.has_value()) { 
+        return val.get_ptr(); 
     }
-    return Maybe<uintptr_t>();
+    return std::nullopt;
+}
+
+Maybe<int> try_parse(std::string str) {
+    try {
+        return std::stoi(str);
+    }
+    catch (const std::exception& e) {
+        return std::nullopt;
+    }
 }
