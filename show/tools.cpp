@@ -3,6 +3,8 @@
 #include <string>
 #include <thread>
 #include <windows.h>
+#include <sstream>
+#include "fmt/format.h"
 
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS
@@ -81,37 +83,52 @@ namespace SaoFU {
     }
 }
 
+Maybe<int> calc(int pos, DisplayConfig& param) {
+    auto wstr = param.ws.substr(0, pos);
+    return SaoFU::count_size(wstr);
+}
+
+Maybe<std::string*> is_select(bool sel, std::string* retn) {
+    return sel ? retn : Maybe<std::string*>();
+}
+
 Maybe<int> get_category(DisplayConfig& param, std::string value) {
+    std::stringstream ss(value);
+    std::string key = "";
+    std::string val = "";
+    ss >> key >> val;
+
+    int center_value = is_select(key == "center", &val)
+        .and_then(has_param<std::string*>)
+        .and_then(convert_to_int<std::string*>)
+        .and_then(calc, param)
+        .value_or(SaoFU::count_size(param.ws));
+
+
+    int char_value = is_select(key == "char", &val)
+        .and_then(has_param<std::string*>)
+        .and_then(convert_to_int<std::string*>)
+        .and_then(calc, param)
+        .value_or(SaoFU::count_size(param.ws));
+
     SaoFU::utils::CategoryToValueMap it = {
         { "top", 0 },
         { "begin", 0 },
-        { "center", (param.screen_width / 2) - (SaoFU::count_size(param.ws) / 2) },
+        { "center", (param.screen_width / 2) - center_value / 2},
         { "end", param.screen_width },
-        { "last_char",-SaoFU::count_size(param.ws) }
+        { "char", char_value }
     };
 
-    if (it.find(value) != it.end()) {
-        return it[value];
+    if (it.find(key) != it.end()) {
+        return it[key];
     };
 
     return Maybe<int>();
 }
 
 Maybe<uintptr_t> is_ptr(Variant<std::string> str) { // Accepts Bello<T> instead of Bello<std::string>
-    if (str.hasValue()) { // Changed to hasValue() to avoid conflict
+    if (str.has_value()) { // Changed to hasValue() to avoid conflict
         return str.get_ptr(); // Returning ptr if not a string pointer
     }
     return Maybe<uintptr_t>();
-}
-
-Maybe<uintptr_t> has_param(std::string* str) {
-    if (!str->empty()) {
-        return (uintptr_t)str;
-    }
-    return Maybe<uintptr_t>();
-}
-
-Maybe<int> ConvertToInt(uintptr_t str) { // Accepts Bello<T> instead of Bello<std::string>
-    std::string astr = *(std::string*)str;
-    return std::stoi(astr);
 }

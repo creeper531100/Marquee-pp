@@ -104,7 +104,7 @@ public:
         config.y_end = 16;
         config.y_offset = 0;
 
-        for (int i = config.x_offset; i >= config.x_end; i--) {
+        for (int i = config.x_offset; i >= -config.x_end; i--) {
             wmemset(screen, config.background, screen_size);
             config.x_offset = i;
 
@@ -183,7 +183,7 @@ public:
 
     virtual void delay(uint64_t param) {
         Variant<std::string> hi(param);
-        int time = is_ptr(hi).map<int>(ConvertToInt).value_or(param);
+        int time = is_ptr(hi).and_then(convert_to_int<uintptr_t>).value_or(param);
 
         std::this_thread::sleep_for(std::chrono::milliseconds(time));
     }
@@ -292,12 +292,29 @@ void display_config_init(Json& j, DisplayConfig& p) {
 int main() {
     SetConsoleOutputCP(65001);
     system("cls");
+
+    FILE* ver_fp;
+    char ver_buffer[100] = { 0 };
+    int ver;
+
+    ver_fp = _popen("powershell (Get-WmiObject Win32_OperatingSystem).Version", "r");
+    fread(ver_buffer, sizeof(ver_buffer), 1, ver_fp);
+    _pclose(ver_fp);
+
+    sscanf_s(ver_buffer, "%*d.%*d.%d", &ver);
+    printf("%s%d\n", ver_buffer, ver);
+
+    if (ver >= 22000) {
+        printf(u8"你是 windows11 請自己調整視窗大小\n", ver_buffer, ver);
+        system("pause");
+    }
+
     Json json;
 
     SAOFU_TRY({
         std::ifstream ifs("setting.json");
         json = nlohmann::json::parse(ifs);
-        })
+    })
 
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     CONSOLE_FONT_INFOEX fontInfo;
@@ -356,10 +373,9 @@ int main() {
                 std::string value = "";
 
                 ss >> key >> value;
+                uintptr_t ptr = has_param<uintptr_t>(&value).value_or((uintptr_t)&config);
 
-                uintptr_t ptr = has_param(&value).value_or((uintptr_t)&config);
-
-                marquee.invoke_method(key, ptr);
+                //marquee.invoke_method(key, ptr);
             }
         }
     }

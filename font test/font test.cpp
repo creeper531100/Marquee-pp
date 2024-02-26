@@ -17,7 +17,7 @@ void draw(wchar_t character, unsigned char* buffer) {
     }
 
     FT_Face face;
-    if (FT_New_Face(library, "KacstNaskh.ttf", 0, &face)) {
+    if (FT_New_Face(library, "STSONG.TTF", 0, &face)) {
         fprintf(stderr, "Failed to load font\n");
         FT_Done_FreeType(library);
         return;
@@ -91,7 +91,7 @@ void to_pack(unsigned char* buf, Pack* pack) {
 int main() {
     unsigned char buffer[BITMAP_WIDTH * BITMAP_HEIGHT] = { '\0' };
 
-    const char* unicode_font_name = "test_16x16.bin";
+    const char* unicode_font_name = "69.bin";
     FILE* file = fopen(unicode_font_name, "wb+");
     Pack* pack = new Pack[0xFFFF];
 
@@ -99,6 +99,7 @@ int main() {
         draw(i, buffer);
         to_pack(buffer, &pack[i]);
         fwrite(&pack[i], 1, sizeof(Pack), file);
+        printf("%lf\r", (((float)i) / (float)0xFFFF) * 100.0f);
     }
 
     return 0;

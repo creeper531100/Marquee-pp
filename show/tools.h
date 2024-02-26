@@ -3,6 +3,10 @@
 
 #include <cstdint>
 #include <string>
+
+#include <functional>
+#include <type_traits>
+
 #include <optional>
 #include <nlohmann/json.hpp>
 
@@ -76,13 +80,11 @@ struct DisplayConfig {
 template <typename T>
 class Variant {
 public:
-    union Parma {
+    union {
         uint64_t ptr;
-        uint32_t has_value[2];
-        T* str;
-    };
-
-    Parma value;
+        uint32_t word[2];
+        T* value;
+    } value;
 
     Variant() {
         this->value.ptr = 0;
@@ -96,12 +98,12 @@ public:
         return value.ptr == other.value.ptr;
     }
 
-    bool hasValue() { // Changed the name to avoid conflict
-        return value.has_value[1];
+    bool has_value() { // Changed the name to avoid conflict
+        return value.word[1];
     }
 
     T get() {
-        return *value.str;
+        return *value.value;
     }
 
     uint64_t get_ptr() {
@@ -109,34 +111,45 @@ public:
     }
 };
 
-template <typename T>
-class Maybe : public std::optional<T> {
+template <typename _Ty>
+class Maybe : public std::optional<_Ty> {
 public:
-    using std::optional<T>::optional;
+    using std::optional<_Ty>::optional;
+    using super = std::optional<_Ty>;
 
-    template <typename U>
-    Maybe<U> map(std::function<Maybe<U>(T)> fn) {
-        if (!(*this)) {
-            return Maybe<U>(); // 返回一個空的 Maybe<U>
+    template <class _Fn, typename... Args>
+    constexpr auto and_then(_Fn&& _Func, Args&&... args) const& {
+        using _Uty = std::invoke_result_t<_Fn, const _Ty&, Args&&...>;
+
+        if (super::has_value()) {
+            return std::invoke(std::forward<_Fn>(_Func), static_cast<const _Ty&>(super::value()), std::forward<Args>(args)...);
         }
-        return fn(**this); // 呼叫函式 fn，並返回其結果
+        return _Uty{};
     }
 
-    template <typename F, typename... Args>
-    Maybe<T> or_else(F fn, Args&&... args) {
-        if (!(*this)) {
-            return fn(std::forward<Args>(args)...); // 如果当前 Maybe 为空，则调用 fn 并返回其结果
+    template <class _Fn, typename... Args>
+    constexpr Maybe<_Ty> or_else(_Fn&& _Func, Args&&... args)&& {
+        if (super::has_value()) {
+            return std::move(*this);
         }
-        return *this; // 如果当前 Maybe 不为空，则返回当前 Maybe
+        else {
+            return std::forward<_Fn>(_Func)(std::forward<Args>(args)...);
+        }
     }
 };
 
 Maybe<int> get_category(DisplayConfig& param, std::string value);
 Maybe<uintptr_t> is_ptr(Variant<std::string> str);
-Maybe<uintptr_t> has_param(std::string* str);
-Maybe<int> ConvertToInt(uintptr_t str);
 
-template<typename It, typename Val, typename Pred>
-int find_or_predict(It it, Val value, Pred pred) {
-    return it.find(value) != it.end() ? it[value] : pred(value);
+template<typename T>
+Maybe<T> has_param(std::string* str) {
+    if (!str->empty()) {
+        return (T)str;
+    }
+    return Maybe<T>();
+}
+
+template<typename T>
+Maybe<int> convert_to_int(T str) { 
+    return std::stoi(*(std::string*)str);
 }
