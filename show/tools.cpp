@@ -93,12 +93,12 @@ Maybe<int> resolve_keyword(DisplayConfig& param, std::string value) {
     ss >> key >> val;
 
     int center_value = is_empty_string(val)
-                       .and_then(convert_to_int)
+                       .and_then(try_parse)
                        .and_then(determine_position, param.ws)
                        .value_or(SaoFU::count_size(param.ws));
 
     int char_value = is_empty_string(val)
-                     .and_then(convert_to_int)
+                     .and_then(try_parse)
                      .and_then(determine_position, param.ws)
                      .value_or(SaoFU::count_size(param.ws));
 
@@ -127,9 +127,6 @@ Maybe<int> try_parse(std::string str) {
     }
 }
 
-Maybe<int> convert_to_int(std::string str) {
-    return std::stoi(str);
-}
 
 DisplayConfigBuilder DisplayConfigBuilder::load_form_file(const std::string& file) {
     DisplayConfigBuilder display;

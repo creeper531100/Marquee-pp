@@ -43,7 +43,7 @@ namespace SaoFU::utils {
     using KeywordReplacementMap = std::unordered_map<std::string, int>;
 }
 
-
+struct DisplayConfigBuilder;
 struct DisplayConfig {
     std::wstring ws; //字串
     int screen_width; //緩衝區大小
@@ -72,10 +72,7 @@ struct DisplayConfig {
 
 struct DisplayConfigBuilder : public DisplayConfig {
     DisplayConfigBuilder() {};
-
-    static DisplayConfigBuilder load_form_file(const std::string& file);
-    DisplayConfig&& build();
-
+    DisplayConfigBuilder(DisplayConfig&& config) : DisplayConfig(config) {};
 
     SETTER(ws);
     SETTER(screen_width);
@@ -94,6 +91,9 @@ struct DisplayConfigBuilder : public DisplayConfig {
     SETTER(step);
     SETTER(time);
     SETTER(clear_text_region);
+
+    static DisplayConfigBuilder load_form_file(const std::string& file);
+    DisplayConfig&& build();
 };
 
 template <typename _Ty>
@@ -116,7 +116,7 @@ public:
     }
 
     template <class _Fn, typename... Args>
-    constexpr Maybe<_Ty> or_else(_Fn&& _Func, Args&&... args)&& {
+    constexpr Maybe or_else(_Fn&& _Func, Args&&... args)&& {
         if (super::has_value()) {
             return std::move(*this);
         }
@@ -129,16 +129,22 @@ public:
 Maybe<int> resolve_keyword(DisplayConfig& param, std::string value);
 
 template<typename T, typename U>
-Maybe<T> inspect_is_string(std::variant<T, U> str) {
-    T* var = std::get_if<T>(&str);
-    if (var) {
+Maybe<T> inspect_get_if(std::variant<T, U> str) {
+    if (T* var = std::get_if<T>(&str)) {
         return *var;
     }
     return std::nullopt;
 }
 
+template<typename T>
+Maybe<T> is_ptr(uintptr_t arg) {
+    if ((arg & 0xFFFFFFFF00000000) != 0) {
+        return (T)arg;
+    }
+    return std::nullopt;
+}
+
 Maybe<int> try_parse(std::string str);
-Maybe<int> convert_to_int(std::string str);
 
 inline Maybe<std::string> is_empty_string(const std::string& str) {
     if (!str.empty()) {

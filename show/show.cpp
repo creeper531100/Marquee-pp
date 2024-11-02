@@ -22,12 +22,15 @@ int main() {
                         .set_hConsole(hConsole)
                         .build();
 
-    DisplayConfig builder = DisplayConfigBuilder::load_form_file("setting.json")
+    DisplayConfigBuilder builder = DisplayConfigBuilder::load_form_file("setting.json")
                             .set_screen_width(width)
                             .build();
 
-    //screen.invoke_method<Marquee>(builder);
-
     screen.screen_clear();
-    screen.invoke_method(IEffect::EffectEnum::Flash, &builder);
+    screen.invoke_method(IEffect::EffectEnum::Flash, (uintptr_t)&builder);
+    screen.delay(1000);
+    screen.invoke_method("Slide", (uintptr_t)&builder.set_ws(L"你好"));
+    screen.invoke_method("delay", (uintptr_t)"1000");
+
+    screen.display<Marquee>(builder.set_x_end(100));
 }

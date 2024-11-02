@@ -19,8 +19,7 @@ DrawScreen::DrawScreen(DrawScreen&& other) noexcept:
     screen(other.screen),
     font(other.font),
     screen_size(other.screen_size),
-    hConsole(other.hConsole)
-{
+    hConsole(other.hConsole) {
     other.screen = nullptr;
     other.font = nullptr;
 }
@@ -82,25 +81,33 @@ void DrawScreen::draw_text(DisplayConfig* param) {
     }
 }
 
-DrawScreen& DrawScreen::invoke_method(std::variant<std::string, IEffect::EffectEnum> effect_name, void* param) {
+DrawScreen& DrawScreen::invoke_method(std::variant<std::string, IEffect::EffectEnum> effect_name, uintptr_t param) {
     using EnumCastPtr = std::optional<IEffect::EffectEnum>(*)(std::string_view, std::equal_to<>);
     EnumCastPtr str_to_enum = magic_enum::enum_cast<IEffect::EffectEnum>;
 
-    IEffect::EffectEnum effect = inspect_is_string(effect_name)
-                    .and_then(str_to_enum, std::equal_to<>{})
-                    .value_or(*std::get_if<IEffect::EffectEnum>(&effect_name));
+    IEffect::EffectEnum effect = inspect_get_if(effect_name)
+                                 .and_then(str_to_enum, std::equal_to<>{})
+                                 .value_or(*std::get_if<IEffect::EffectEnum>(&effect_name));
 
-    IEffect::EffectList::list[(uintptr_t)effect]()->show(*(DisplayConfig*)param, *this);
+    uintptr_t effect_index = (uintptr_t)effect;
+
+    if (effect_index < IEffect::EffectList::list.size()) {
+        IEffect::EffectList::list[(uintptr_t)effect]()->show(*(DisplayConfig*)param, *this);
+    }
+    else {
+        const uintptr_t* vtable = *(uintptr_t**)this;
+        ((void(*)(uintptr_t, uintptr_t))vtable[effect_index - IEffect::EffectList::list.
+            size()])((uintptr_t)this, param);
+    }
+
     return *this;
 }
 
-void DrawScreen::delay(std::variant<std::string, uintptr_t> param) {
-    auto time = inspect_is_string(param)
-                .and_then(convert_to_int)
-                .value_or(*std::get_if<uintptr_t>(&param));
-
+void DrawScreen::delay(uintptr_t arg) {
+    auto time = is_ptr<const char*>(arg).and_then(try_parse).value_or(arg);
     std::this_thread::sleep_for(std::chrono::milliseconds(time));
 }
+
 
 void DrawScreen::screen_clear() {
     DWORD dwBytesWritten;

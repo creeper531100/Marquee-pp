@@ -26,7 +26,10 @@ struct IEffect {
     enum class EffectEnum {
         Marquee,
         Slide,
-        Flash
+        Flash,
+
+        delay,
+        screen_clear
     };
 
     using EffectList = EffectFactory<IEffect, Marquee, Slide, Flash>;

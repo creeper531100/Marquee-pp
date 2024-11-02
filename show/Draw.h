@@ -30,9 +30,9 @@ public:
 
     std::pair<int, int> clear_text_region(DisplayConfig& config, int index = 0, bool clear_region = true);
 
-    DrawScreen& invoke_method(std::variant<std::string, IEffect::EffectEnum> effect_name, void* param);
+    DrawScreen& invoke_method(std::variant<std::string, IEffect::EffectEnum> effect_name, uintptr_t param);
 
-    virtual void delay(std::variant<std::string, uintptr_t> param);
+    virtual void delay(uintptr_t param);
     virtual void screen_clear();
 
     ~DrawScreen();
