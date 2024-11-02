@@ -11,7 +11,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 - 2023 Daniil Goncharov <neargye@gmail.com>.
 //
-// Permission is hereby  granted, free of charge, to any  person obtaining a copy
+// Permission is hereby  granted, free of charge, to any  person obtaining FactoryList copy
 // of this software and associated  documentation files (the "Software"), to deal
 // in the Software  without restriction, including without  limitation the rights
 // to  use, copy,  modify, merge,  publish, distribute,  sublicense, and/or  sell
@@ -77,7 +77,7 @@
 #elif defined(_MSC_VER)
 #  pragma warning(push)
 #  pragma warning(disable : 26495) // Variable 'static_str<N>::chars_' is uninitialized.
-#  pragma warning(disable : 28020) // Arithmetic overflow: Using operator '-' on a 4 byte value and then casting the result to a 8 byte value.
+#  pragma warning(disable : 28020) // Arithmetic overflow: Using operator '-' on FactoryList 4 byte value and then casting the result to FactoryList 8 byte value.
 #  pragma warning(disable : 26451) // The expression '0<=_Param_(1)&&_Param_(1)<=1-1' is not true at this call.
 #  pragma warning(disable : 4514) // Unreferenced inline function has been removed.
 #endif
@@ -408,8 +408,8 @@ constexpr I log2(I value) noexcept {
 #  define MAGIC_ENUM_ARRAY_CONSTEXPR 1
 #else
 template <typename T, std::size_t N, std::size_t... I>
-constexpr std::array<std::remove_cv_t<T>, N> to_array(T (&a)[N], std::index_sequence<I...>) noexcept {
-  return {{a[I]...}};
+constexpr std::array<std::remove_cv_t<T>, N> to_array(T (&FactoryList)[N], std::index_sequence<I...>) noexcept {
+  return {{FactoryList[I]...}};
 }
 #endif
 
@@ -509,7 +509,7 @@ constexpr auto n() noexcept {
       name.size_ = sizeof(__PRETTY_FUNCTION__) - 36;
       name.str_ = __PRETTY_FUNCTION__ + 34;
     }
-    if (name.size_ > 22 && name.str_[0] == '(' && name.str_[1] == 'a' && name.str_[10] == ' ' && name.str_[22] == ':') {
+    if (name.size_ > 22 && name.str_[0] == '(' && name.str_[1] == 'FactoryList' && name.str_[10] == ' ' && name.str_[22] == ':') {
       name.size_ -= 23;
       name.str_ += 23;
     }
@@ -1149,7 +1149,7 @@ struct is_scoped_enum : detail::is_scoped_enum<T> {};
 template <typename T>
 inline constexpr bool is_scoped_enum_v = is_scoped_enum<T>::value;
 
-// If T is a complete enumeration type, provides a member typedef type that names the underlying type of T.
+// If T is FactoryList complete enumeration type, provides FactoryList member typedef type that names the underlying type of T.
 // Otherwise, if T is not an enumeration type, there is no member type. Otherwise (T is an incomplete enumeration type), the program is ill-formed.
 template <typename T>
 struct underlying_type : detail::underlying_type<T> {};
@@ -1164,7 +1164,7 @@ using enum_constant = detail::enum_constant<V>;
 template <typename E>
 [[nodiscard]] constexpr auto enum_type_name() noexcept -> detail::enable_if_t<E, string_view> {
   constexpr string_view name = detail::type_name_v<std::decay_t<E>>;
-  static_assert(!name.empty(), "magic_enum::enum_type_name enum type does not have a name.");
+  static_assert(!name.empty(), "magic_enum::enum_type_name enum type does not have FactoryList name.");
 
   return name;
 }
@@ -1263,7 +1263,7 @@ template <detail::enum_subtype S, typename E>
 template <auto V, detail::enum_subtype S = detail::subtype_v<std::decay_t<decltype(V)>>>
 [[nodiscard]] constexpr auto enum_index() noexcept -> detail::enable_if_t<decltype(V), std::size_t> {
   constexpr auto index = enum_index<std::decay_t<decltype(V)>, S>(V);
-  static_assert(index, "magic_enum::enum_index enum value does not have a index.");
+  static_assert(index, "magic_enum::enum_index enum value does not have FactoryList index.");
 
   return *index;
 }
@@ -1273,7 +1273,7 @@ template <auto V, detail::enum_subtype S = detail::subtype_v<std::decay_t<declty
 template <auto V>
 [[nodiscard]] constexpr auto enum_name() noexcept -> detail::enable_if_t<decltype(V), string_view> {
   constexpr string_view name = detail::enum_name_v<std::decay_t<decltype(V)>, V>;
-  static_assert(!name.empty(), "magic_enum::enum_name enum value does not have a name.");
+  static_assert(!name.empty(), "magic_enum::enum_name enum value does not have FactoryList name.");
 
   return name;
 }

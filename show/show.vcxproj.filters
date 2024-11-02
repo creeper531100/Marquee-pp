@@ -21,6 +21,12 @@
     <ClCompile Include="tools.cpp">
       <Filter>來源檔案</Filter>
     </ClCompile>
+    <ClCompile Include="Effect.cpp">
+      <Filter>來源檔案</Filter>
+    </ClCompile>
+    <ClCompile Include="Draw.cpp">
+      <Filter>來源檔案</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="tools.h">
@@ -52,6 +58,15 @@
     </ClInclude>
     <ClInclude Include="magic_enum\magic_enum_utility.hpp">
       <Filter>資源檔</Filter>
+    </ClInclude>
+    <ClInclude Include="Effect.h">
+      <Filter>標頭檔</Filter>
+    </ClInclude>
+    <ClInclude Include="Draw.h">
+      <Filter>標頭檔</Filter>
+    </ClInclude>
+    <ClInclude Include="def.h">
+      <Filter>標頭檔</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

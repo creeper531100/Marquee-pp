@@ -4,21 +4,13 @@
 #include <cstdint>
 #include <string>
 
-#include <functional>
 #include <type_traits>
 
 #include <optional>
+#include <variant>
 #include <nlohmann/json.hpp>
 
-using Json = nlohmann::json;
-using Font = uint16_t[16];
-
-struct DisplayConfig;
-
-#define SAOFU_EXCEPTION(hr) SaoFU::e_what(__LINE__, __FILE__, hr)
-
-#define SAOFU_TRY(fn) try fn catch(std::exception &e) { \
-    SaoFU::e_what(__LINE__, e.what(), 2); }
+#include "def.h"
 
 namespace SaoFU {
     std::wstring count_space(int count_size, int width);
@@ -51,6 +43,7 @@ namespace SaoFU::utils {
     using KeywordReplacementMap = std::unordered_map<std::string, int>;
 }
 
+
 struct DisplayConfig {
     std::wstring ws; //字串
     int screen_width; //緩衝區大小
@@ -77,38 +70,30 @@ struct DisplayConfig {
     SaoFU::utils::TextClearMethod clear_text_region = SaoFU::utils::TextClearMethod::ClearAllText;
 };
 
-template <typename T>
-class Variant {
-public:
-    union {
-        uint64_t ptr;
-        uint32_t word[2];
-        T* value;
-    } value;
+struct DisplayConfigBuilder : public DisplayConfig {
+    DisplayConfigBuilder() {};
 
-    Variant() {
-        this->value.ptr = 0;
-    }
+    static DisplayConfigBuilder load_form_file(const std::string& file);
+    DisplayConfig&& build();
 
-    Variant(uint64_t value) {
-        this->value.ptr = value;
-    }
 
-    bool operator==(const Variant& other) const {
-        return value.ptr == other.value.ptr;
-    }
-
-    bool has_value() { // Changed the name to avoid conflict
-        return value.word[1];
-    }
-
-    T get() {
-        return *value.value;
-    }
-
-    uint64_t get_ptr() {
-        return value.ptr;
-    }
+    SETTER(ws);
+    SETTER(screen_width);
+    SETTER(x_begin);
+    SETTER(x_end);
+    SETTER(x_offset);
+    SETTER(glyph_height);
+    SETTER(glyph_width);
+    SETTER(glyph_width_offset);
+    SETTER(glyph_width_factor);
+    SETTER(fill_char);
+    SETTER(background);
+    SETTER(y_begin);
+    SETTER(y_end);
+    SETTER(y_offset);
+    SETTER(step);
+    SETTER(time);
+    SETTER(clear_text_region);
 };
 
 template <typename _Ty>
@@ -116,6 +101,9 @@ class Maybe : public std::optional<_Ty> {
 public:
     using std::optional<_Ty>::optional;
     using super = std::optional<_Ty>;
+
+    Maybe(const std::optional<_Ty>& opt) : super(opt) {}
+    Maybe(std::optional<_Ty>&& opt) : super(std::move(opt)) {}
 
     template <class _Fn, typename... Args>
     constexpr auto and_then(_Fn&& _Func, Args&&... args) const& {
@@ -139,19 +127,23 @@ public:
 };
 
 Maybe<int> resolve_keyword(DisplayConfig& param, std::string value);
-Maybe<uintptr_t> inspect_ptr_or_string(Variant<std::string> str);
-Maybe<int> try_parse(std::string str);
 
-template<typename T>
-Maybe<T> is_empty_string(std::string* str) {
-    if (!str->empty()) {
-        return (T)str;
+template<typename T, typename U>
+Maybe<T> inspect_is_string(std::variant<T, U> str) {
+    T* var = std::get_if<T>(&str);
+    if (var) {
+        return *var;
     }
     return std::nullopt;
 }
 
-template<typename T>
-Maybe<int> convert_to_int(T str) { 
-    return std::stoi(*(std::string*)str);
+Maybe<int> try_parse(std::string str);
+Maybe<int> convert_to_int(std::string str);
+
+inline Maybe<std::string> is_empty_string(const std::string& str) {
+    if (!str.empty()) {
+        return str;
+    }
+    return std::nullopt;
 }
 

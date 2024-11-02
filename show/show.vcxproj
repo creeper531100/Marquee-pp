@@ -129,10 +129,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Draw.cpp" />
+    <ClCompile Include="Effect.cpp" />
     <ClCompile Include="show.cpp" />
     <ClCompile Include="tools.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="def.h" />
+    <ClInclude Include="Draw.h" />
+    <ClInclude Include="Effect.h" />
     <ClInclude Include="magic_enum\magic_enum.hpp" />
     <ClInclude Include="magic_enum\magic_enum_all.hpp" />
     <ClInclude Include="magic_enum\magic_enum_containers.hpp" />
