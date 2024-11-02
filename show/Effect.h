@@ -13,7 +13,6 @@ std::vector<std::function<std::unique_ptr<T>()>> EffectFactory<T, Ts...>::list =
     []() { return std::make_unique<Ts>(); }...
 };
 
-
 struct DisplayConfig;
 struct DrawScreen;
 
@@ -23,18 +22,17 @@ struct Flash;
 
 struct IEffect {
 
-    enum class EffectEnum {
+    enum struct EffectEnum {
+        Unknown = -1,
         Marquee,
         Slide,
         Flash,
-
-        delay,
-        screen_clear
     };
 
     using EffectList = EffectFactory<IEffect, Marquee, Slide, Flash>;
 
     virtual void show(DisplayConfig& config, DrawScreen& screen) = 0;
+
 };
 
 

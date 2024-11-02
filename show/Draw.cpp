@@ -12,9 +12,6 @@
 #include "Effect.h"
 
 
-DrawScreen::DrawScreen() {
-}
-
 DrawScreen::DrawScreen(DrawScreen&& other) noexcept:
     screen(other.screen),
     font(other.font),
@@ -81,26 +78,47 @@ void DrawScreen::draw_text(DisplayConfig* param) {
     }
 }
 
-DrawScreen& DrawScreen::invoke_method(std::variant<std::string, IEffect::EffectEnum> effect_name, uintptr_t param) {
-    using EnumCastPtr = std::optional<IEffect::EffectEnum>(*)(std::string_view, std::equal_to<>);
-    EnumCastPtr str_to_enum = magic_enum::enum_cast<IEffect::EffectEnum>;
+bool DrawScreen::create_instance(std::variant<std::string, IEffect::EffectEnum> effect_name, uintptr_t arg) {
+    auto effect = inspect_get_if<std::string>(effect_name)
+                  .and_then(str_to_enum<IEffect::EffectEnum>)
+                  .value_or(IEffect::EffectEnum::Unknown);
 
-    IEffect::EffectEnum effect = inspect_get_if(effect_name)
-                                 .and_then(str_to_enum, std::equal_to<>{})
-                                 .value_or(*std::get_if<IEffect::EffectEnum>(&effect_name));
+    auto is_str = inspect_get_if<IEffect::EffectEnum>(effect_name).value_or(IEffect::EffectEnum::Unknown);
 
-    uintptr_t effect_index = (uintptr_t)effect;
+    if (effect == IEffect::EffectEnum::Unknown) {
+        effect = is_str;
 
-    if (effect_index < IEffect::EffectList::list.size()) {
-        IEffect::EffectList::list[(uintptr_t)effect]()->show(*(DisplayConfig*)param, *this);
-    }
-    else {
-        const uintptr_t* vtable = *(uintptr_t**)this;
-        ((void(*)(uintptr_t, uintptr_t))vtable[effect_index - IEffect::EffectList::list.
-            size()])((uintptr_t)this, param);
+        if (effect == IEffect::EffectEnum::Unknown) {
+            return false;
+        }
     }
 
-    return *this;
+    intptr_t effect_index = (intptr_t)effect;
+    IEffect::EffectList::list[effect_index]()->show(*(DisplayConfig*)arg, *this);
+    return true;
+}
+
+bool DrawScreen::invoke_method(std::variant<std::string, MethodEnum> effect_name, uintptr_t arg) {
+    auto effect = inspect_get_if<std::string>(effect_name)
+                            .and_then(str_to_enum<MethodEnum>)
+                            .value_or(MethodEnum::Unknown);
+
+    auto is_str = inspect_get_if<MethodEnum>(effect_name).value_or(MethodEnum::Unknown);
+
+    if (effect == MethodEnum::Unknown) {
+        effect = is_str;
+
+        if (effect == MethodEnum::Unknown) {
+            return false;
+        }
+    }
+
+    intptr_t effect_index = (intptr_t)effect;
+
+    const uintptr_t* vtable = *(uintptr_t**)this;
+    ((void(*)(uintptr_t, uintptr_t))vtable[effect_index])((uintptr_t)this, arg);
+
+    return true;
 }
 
 void DrawScreen::delay(uintptr_t arg) {
@@ -161,15 +179,17 @@ DrawScreen::~DrawScreen() {
     }
 }
 
-DrawScreenBuilder& DrawScreenBuilder::set_screen_size(const size_t size) {
-    screen = new wchar_t[size];
-    screen_size = size;
-    return *this;
+
+DrawScreenBuilder DrawScreenBuilder::builder(size_t size, HANDLE hConsole) {
+    DrawScreenBuilder builder;
+    builder.screen = new wchar_t[size];
+    builder.screen_size = size;
+    builder.hConsole = hConsole;
+
+    return builder;
 }
 
-DrawScreenBuilder DrawScreenBuilder::load_font(const std::string& path) {
-    DrawScreenBuilder scr;
-
+DrawScreenBuilder& DrawScreenBuilder::load_font(const std::string& path) {
     FILE* fp = fopen(path.c_str(), "rb");
     if (!fp) {
         throw SaoFU::e_what(__LINE__, "找不到字體", 29);
@@ -179,11 +199,11 @@ DrawScreenBuilder DrawScreenBuilder::load_font(const std::string& path) {
     size_t font_size = ftell(fp);
     fseek(fp, 0L, SEEK_SET);
 
-    scr.font = (Font*)malloc(font_size);
-    fread(scr.font, font_size, 1, fp);
+    this->font = (Font*)malloc(font_size);
+    fread(this->font, font_size, 1, fp);
     fclose(fp);
 
-    return scr;
+    return *this;
 }
 
 DrawScreen&& DrawScreenBuilder::build() {

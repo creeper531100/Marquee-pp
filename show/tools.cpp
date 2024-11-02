@@ -118,6 +118,8 @@ Maybe<int> resolve_keyword(DisplayConfig& param, std::string value) {
 }
 
 
+
+
 Maybe<int> try_parse(std::string str) {
     try {
         return std::stoi(str);
@@ -128,45 +130,41 @@ Maybe<int> try_parse(std::string str) {
 }
 
 
-DisplayConfigBuilder DisplayConfigBuilder::load_form_file(const std::string& file) {
-    DisplayConfigBuilder display;
+DisplayConfigBuilder& DisplayConfigBuilder::load_form_json(const Json& j) {
+    Json cfg = j["config"];
 
-    Json j;
+    this->step = cfg.value("step", this->step);
+    this->time = cfg.value("time", this->time);
 
-    SAOFU_TRY({
-        std::ifstream ifs(file);
-        j = nlohmann::json::parse(ifs);
-    })
+    std::string x_offset = cfg.value("x_offset", "begin");
+    std::string x_begin = cfg.value("x_begin", "begin");
+    std::string x_end = cfg.value("x_end", "end");
+    std::string clear_text = cfg.value("clear_text_region", "ClearAllText");
 
-    Json effect = j["effect"];
+    this->x_begin = try_parse(x_begin).or_else(resolve_keyword, *this, x_begin).value_or(0);
+    this->x_offset = try_parse(x_offset).or_else(resolve_keyword, *this, x_offset).value_or(0);
+    this->x_end = try_parse(x_end).or_else(resolve_keyword, *this, x_end).value_or(0);
+    this->clear_text_region = magic_enum::enum_cast<SaoFU::utils::TextClearMethod>(clear_text).value();
 
-    display.ws = SaoFU::get_time(SaoFU::utf8_to_utf16(j["ws"]).c_str());
-    display.step = effect.value("step", display.step);
-    display.time = effect.value("time", display.time);
+    this->glyph_height = cfg.value("glyph_height", this->glyph_height);
+    this->glyph_width = cfg.value("glyph_width", this->glyph_width);
+    this->glyph_width_offset = cfg.value("glyph_width_offset", this->glyph_width_offset);
+    this->glyph_width_factor = cfg.value("glyph_width_factor", this->glyph_width_factor);
 
-    std::string x_offset = effect.value("x_offset", "begin");
-    std::string x_begin = effect.value("x_begin", "begin");
-    std::string x_end = effect.value("x_end", "end");
-    std::string clear_text = effect.value("clear_text_region", "ClearAllText");
+    this->fill_char = cfg.value("fill_char", this->fill_char);
+    this->background = cfg.value("background", this->background);
 
-    display.x_begin = try_parse(x_begin).or_else(resolve_keyword, display, x_begin).value_or(0);
-    display.x_offset = try_parse(x_offset).or_else(resolve_keyword, display, x_offset).value_or(0);
-    display.x_end = try_parse(x_end).or_else(resolve_keyword, display, x_end).value_or(0);
-    display.clear_text_region = magic_enum::enum_cast<SaoFU::utils::TextClearMethod>(clear_text).value();
+    this->y_begin = cfg.value("y_begin", this->y_begin);
+    this->y_end = cfg.value("y_end", this->y_end);
+    this->y_offset = cfg.value("y_offset", this->y_offset);
 
-    display.glyph_height = effect.value("glyph_height", display.glyph_height);
-    display.glyph_width = effect.value("glyph_width", display.glyph_width);
-    display.glyph_width_offset = effect.value("glyph_width_offset", display.glyph_width_offset);
-    display.glyph_width_factor = effect.value("glyph_width_factor", display.glyph_width_factor);
+    return *this;
+}
 
-    display.fill_char = effect.value("fill_char", display.fill_char);
-    display.background = effect.value("background", display.background);
-
-    display.y_begin = effect.value("y_begin", display.y_begin);
-    display.y_end = effect.value("y_end", display.y_end);
-    display.y_offset = effect.value("y_offset", display.y_offset);
-
-    return display;
+DisplayConfigBuilder DisplayConfigBuilder::builder(uint64_t width) {
+    DisplayConfigBuilder config;
+    config.screen_width = width;
+    return config;
 }
 
 DisplayConfig&& DisplayConfigBuilder::build() {

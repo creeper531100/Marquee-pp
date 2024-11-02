@@ -11,6 +11,7 @@
 #include <nlohmann/json.hpp>
 
 #include "def.h"
+#include "magic_enum/magic_enum.hpp"
 
 namespace SaoFU {
     std::wstring count_space(int count_size, int width);
@@ -72,7 +73,7 @@ struct DisplayConfig {
 
 struct DisplayConfigBuilder : public DisplayConfig {
     DisplayConfigBuilder() {};
-    DisplayConfigBuilder(DisplayConfig&& config) : DisplayConfig(config) {};
+    DisplayConfigBuilder(DisplayConfig&& config) : DisplayConfig(std::move(config)) {};
 
     SETTER(ws);
     SETTER(screen_width);
@@ -92,8 +93,9 @@ struct DisplayConfigBuilder : public DisplayConfig {
     SETTER(time);
     SETTER(clear_text_region);
 
-    static DisplayConfigBuilder load_form_file(const std::string& file);
+    DisplayConfigBuilder& load_form_json(const nlohmann::json& j);
     DisplayConfig&& build();
+    static DisplayConfigBuilder builder(uint64_t width);
 };
 
 template <typename _Ty>
@@ -129,12 +131,24 @@ public:
 Maybe<int> resolve_keyword(DisplayConfig& param, std::string value);
 
 template<typename T, typename U>
-Maybe<T> inspect_get_if(std::variant<T, U> str) {
-    if (T* var = std::get_if<T>(&str)) {
+Maybe<T> inspect_get_if(U str) {
+    T* var = std::get_if<T>(&str);
+
+    if (var) {
         return *var;
+    }
+
+    return std::nullopt;
+}
+
+template<typename T>
+Maybe<T> str_to_enum(const std::string& key) {
+    if (magic_enum::enum_cast<T>(key).has_value()) {
+        return magic_enum::enum_cast<T>(key);
     }
     return std::nullopt;
 }
+
 
 template<typename T>
 Maybe<T> is_ptr(uintptr_t arg) {

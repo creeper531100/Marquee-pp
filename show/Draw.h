@@ -8,9 +8,10 @@
 #include "Effect.h"
 #include "magic_enum/magic_enum.hpp"
 
+struct DrawScreenBuilder;
 class DrawScreen {
 public:
-    DrawScreen();
+    DrawScreen() {}
 
     DrawScreen(DrawScreen&& other) noexcept;
 
@@ -19,7 +20,6 @@ public:
     DrawScreen& operator=(DrawScreen&& other) noexcept;
 
     void draw_text(DisplayConfig* param);
-
 
     template <typename T>
     DrawScreen& display(DisplayConfig& param) {
@@ -30,7 +30,16 @@ public:
 
     std::pair<int, int> clear_text_region(DisplayConfig& config, int index = 0, bool clear_region = true);
 
-    DrawScreen& invoke_method(std::variant<std::string, IEffect::EffectEnum> effect_name, uintptr_t param);
+    bool create_instance(std::variant<std::string, IEffect::EffectEnum> effect_name, uintptr_t arg);
+
+
+    enum class MethodEnum {
+        Unknown = -1,
+        delay,
+        screen_clear
+    };
+
+    bool invoke_method(std::variant<std::string, MethodEnum> effect_name, uintptr_t arg);
 
     virtual void delay(uintptr_t param);
     virtual void screen_clear();
@@ -46,9 +55,14 @@ public:
 
 class DrawScreenBuilder : public DrawScreen {
 public:
-    DrawScreenBuilder& set_screen_size(const size_t size);
+    DrawScreenBuilder() {};
+    DrawScreenBuilder(DrawScreen&& config) : DrawScreen(std::move(config)) {};
+
+    static DrawScreenBuilder builder(size_t size, HANDLE hConsole);
+
     SETTER(hConsole);
 
-    static DrawScreenBuilder load_font(const std::string& path);
+    DrawScreenBuilder& load_font(const std::string& path);
+
     DrawScreen&& build();
 };

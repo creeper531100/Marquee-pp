@@ -1,5 +1,7 @@
 ﻿#define _CRT_SECURE_NO_WARNINGS
 
+#include <fstream>
+#include <sstream>
 #include <string>
 
 #include <thread>
@@ -13,24 +15,46 @@ int main() {
     SetConsoleOutputCP(65001);
 
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_FONT_INFOEX fontInfo;
+    fontInfo.cbSize = sizeof(CONSOLE_FONT_INFOEX);
+    GetCurrentConsoleFontEx(hConsole, FALSE, &fontInfo);
 
-    int width = 120;
+    fontInfo.dwFontSize.Y = 14;
+
+    SetCurrentConsoleFontEx(hConsole, FALSE, &fontInfo);
+
+    RECT rect = {0, 0, 16 * 14 * 8 + 48, 32 * 7 + 64};
+    MoveWindow(GetConsoleWindow(), rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, TRUE);
+
+    CONSOLE_SCREEN_BUFFER_INFO console_buffer_info = {0};
+    GetConsoleScreenBufferInfo(hConsole, &console_buffer_info);
+
+    int width = console_buffer_info.srWindow.Right - console_buffer_info.srWindow.Left + 1;
     int height = 16;
 
-    DrawScreen screen = DrawScreenBuilder::load_font("font/mingliu7.03/mingliu_Fixedsys_Excelsior.bin")
-                        .set_screen_size(width * height)
-                        .set_hConsole(hConsole)
-                        .build();
+    nlohmann::json json;
 
-    DisplayConfigBuilder builder = DisplayConfigBuilder::load_form_file("setting.json")
-                            .set_screen_width(width)
-                            .build();
+    SAOFU_TRY({
+        std::ifstream ifs("setting.json");
+        json = nlohmann::json::parse(ifs);
+        })
 
-    screen.screen_clear();
-    screen.invoke_method(IEffect::EffectEnum::Flash, (uintptr_t)&builder);
-    screen.delay(1000);
-    screen.invoke_method("Slide", (uintptr_t)&builder.set_ws(L"你好"));
-    screen.invoke_method("delay", (uintptr_t)"1000");
+    DrawScreenBuilder screen = DrawScreenBuilder::builder(width * height, hConsole)
+                               .load_font("font/mingliu7.03/mingliu_Fixedsys_Excelsior.bin")
+                               .build();
 
-    screen.display<Marquee>(builder.set_x_end(100));
+
+    for (auto& row : json["exec"]) {
+        std::string effect = row["effect"];
+        std::string arg = row["arg"];
+
+        DisplayConfigBuilder param = DisplayConfigBuilder::builder(width)
+                                     .set_ws(SaoFU::utf8_to_utf16(arg))
+                                     .load_form_json(row)
+                                     .build();
+
+        if (!screen.create_instance(effect, (uintptr_t)&param)) {
+            screen.invoke_method(effect, (uintptr_t)arg.c_str());
+        }
+    }
 }
