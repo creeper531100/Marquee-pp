@@ -1,0 +1,150 @@
+﻿{
+	"font_path": "C:/Users/creep/Downloads/Marquee-pp/show/font/mingliu7.03/mingliu_Fixedsys_Excelsior.bin",
+	"exec": [
+		{
+			"effect": "Marquee",
+			"arg": "曾經我是不安河水",
+			"config": {
+				"x_offset": "end",
+				"x_end": "begin",
+				"glyph_width_offset": 1,
+				"glyph_width_factor": 2,
+				"time": 1
+			}
+		},
+		{
+			"effect": "delay",
+			"arg": "600",
+			"config": {}
+		},
+		{
+			"effect": "Marquee",
+			"arg": "穿過森林誤入你心 沒計劃紮營 擱下了是非 一去不回",
+			"config": {
+				"x_offset": "end",
+				"x_end": "char",
+				"step": 3,
+				"time": 1
+			}
+		},
+		{
+			"effect": "Slide",
+			"arg": "如今我是造夢的人吶",
+			"config": {
+				"time": 1
+			}
+		},
+		{
+			"effect": "delay",
+			"arg": "1000",
+			"config": {}
+		},
+		{
+			"effect": "Marquee",
+			"arg": "如今我是造夢的人吶",
+			"config": {
+				"x_offset": "begin",
+				"x_end": "32",
+				"time": 1
+			}
+		},
+		{
+			"effect": "delay",
+			"arg": "1000",
+			"config": {}
+		},
+		{
+			"effect": "Flash",
+			"arg": "等潮汐",
+			"config": {
+				"time": 1
+			}
+		},
+		{
+			"effect": "delay",
+			"arg": "1000",
+			"config": {}
+		},
+		{
+			"effect": "Slide",
+			"arg": "來臨我就",
+			"config": {
+				"x_offset": "char",
+				"clear_text_region": "ClearTextItself",
+				"glyph_width_offset": 1,
+				"glyph_width_factor": 2,
+				"time": 1
+			}
+		},
+		{
+			"effect": "delay",
+			"arg": "2000",
+			"config": {}
+		},
+		{
+			"effect": "Slide",
+			"arg": "能記起你的樣子",
+			"config": {
+				"x_offset": "center",
+				"time": 1
+			}
+		},
+		{
+			"effect": "delay",
+			"arg": "2000",
+			"config": {}
+		},
+		{
+			"effect": "Slide",
+			"arg": "我_",
+			"config": {
+				"clear_text_region": "ClearAll",
+				"time": 0
+			}
+		},
+		{
+			"effect": "delay",
+			"arg": "300",
+			"config": {}
+		},
+		{
+			"effect": "Slide",
+			"arg": "我沒_",
+			"config": {
+				"clear_text_region": "ClearAll",
+				"time": 0
+			}
+		},
+		{
+			"effect": "delay",
+			"arg": "300",
+			"config": {}
+		},
+		{
+			"effect": "Slide",
+			"arg": "我沒看_",
+			"config": {
+				"clear_text_region": "ClearAll",
+				"time": 0
+			}
+		},
+		{
+			"effect": "delay",
+			"arg": "300",
+			"config": {}
+		},
+		{
+			"effect": "Slide",
+			"arg": "我沒看過_",
+			"config": {
+				"clear_text_region": "ClearAll",
+				"time": 0
+			}
+		},
+		{
+			"effect": "delay",
+			"arg": "2000",
+			"config": {}
+		}
+	]
+}
