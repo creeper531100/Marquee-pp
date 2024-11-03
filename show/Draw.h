@@ -30,16 +30,12 @@ public:
 
     std::pair<int, int> clear_text_region(DisplayConfig& config, int index = 0, bool clear_region = true);
 
-    bool create_instance(std::variant<std::string, IEffect::EffectEnum> effect_name, uintptr_t arg);
-
 
     enum class MethodEnum {
         Unknown = -1,
         delay,
         screen_clear
     };
-
-    bool invoke_method(std::variant<std::string, MethodEnum> effect_name, uintptr_t arg);
 
     virtual void delay(uintptr_t param);
     virtual void screen_clear();

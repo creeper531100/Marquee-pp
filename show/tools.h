@@ -46,7 +46,9 @@ namespace SaoFU::utils {
 
 struct DisplayConfigBuilder;
 struct DisplayConfig {
-    std::wstring ws; //字串
+    std::string param; //字串
+    std::wstring param_ws; //字串
+
     int screen_width; //緩衝區大小
 
     int x_begin = 0; //文字在螢幕上起始x座標
@@ -75,7 +77,7 @@ struct DisplayConfigBuilder : public DisplayConfig {
     DisplayConfigBuilder() {};
     DisplayConfigBuilder(DisplayConfig&& config) : DisplayConfig(std::move(config)) {};
 
-    SETTER(ws);
+    SETTER(param_ws);
     SETTER(screen_width);
     SETTER(x_begin);
     SETTER(x_end);
@@ -92,6 +94,12 @@ struct DisplayConfigBuilder : public DisplayConfig {
     SETTER(step);
     SETTER(time);
     SETTER(clear_text_region);
+
+    auto& set_param(std::string param) {
+        this->param = param;
+        this->param_ws = SaoFU::utf8_to_utf16(param);
+        return *this;
+    };
 
     DisplayConfigBuilder& load_form_json(const nlohmann::json& j);
     DisplayConfig&& build();
@@ -166,4 +174,3 @@ inline Maybe<std::string> is_empty_string(const std::string& str) {
     }
     return std::nullopt;
 }
-

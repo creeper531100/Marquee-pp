@@ -94,13 +94,13 @@ Maybe<int> resolve_keyword(DisplayConfig& param, std::string value) {
 
     int center_value = is_empty_string(val)
                        .and_then(try_parse)
-                       .and_then(determine_position, param.ws)
-                       .value_or(SaoFU::count_size(param.ws));
+                       .and_then(determine_position, param.param_ws)
+                       .value_or(SaoFU::count_size(param.param_ws));
 
     int char_value = is_empty_string(val)
                      .and_then(try_parse)
-                     .and_then(determine_position, param.ws)
-                     .value_or(SaoFU::count_size(param.ws));
+                     .and_then(determine_position, param.param_ws)
+                     .value_or(SaoFU::count_size(param.param_ws));
 
     SaoFU::utils::KeywordReplacementMap it = {
             {"top", 0},

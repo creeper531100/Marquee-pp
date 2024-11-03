@@ -44,17 +44,20 @@ int main() {
                                .build();
 
 
-    for (auto& row : json["exec"]) {
-        std::string effect = row["effect"];
-        std::string arg = row["arg"];
+    while (true) {
+        for (auto& row : json["exec"]) {
+            std::string effect = row["effect"];
+            std::string arg = row["arg"];
 
-        DisplayConfigBuilder param = DisplayConfigBuilder::builder(width)
-                                     .set_ws(SaoFU::utf8_to_utf16(arg))
-                                     .load_form_json(row)
-                                     .build();
+            DisplayConfigBuilder param = DisplayConfigBuilder::builder(width)
+                                         .set_param(arg)
+                                         .load_form_json(row)
+                                         .build();
 
-        if (!screen.create_instance(effect, (uintptr_t)&param)) {
-            screen.invoke_method(effect, (uintptr_t)arg.c_str());
+            std::unique_ptr<IEffect> ptr;
+            if(ptr = IEffect::create_instance(effect)) {
+                ptr->invoke(param, screen);
+            }
         }
     }
 }

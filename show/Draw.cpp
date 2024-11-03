@@ -50,9 +50,9 @@ void DrawScreen::draw_text(DisplayConfig* param) {
 
     int start = 0;
 
-    for (int i = 0; i < param->ws.length(); i++) {
+    for (int i = 0; i < param->param_ws.length(); i++) {
         bool is_half_width = false;
-        wchar_t ch = param->ws[i];
+        wchar_t ch = param->param_ws[i];
 
         // 畫出一個字元
         for (int row = y_begin; row < y_end; row++) {
@@ -78,48 +78,6 @@ void DrawScreen::draw_text(DisplayConfig* param) {
     }
 }
 
-bool DrawScreen::create_instance(std::variant<std::string, IEffect::EffectEnum> effect_name, uintptr_t arg) {
-    auto effect = inspect_get_if<std::string>(effect_name)
-                  .and_then(str_to_enum<IEffect::EffectEnum>)
-                  .value_or(IEffect::EffectEnum::Unknown);
-
-    auto is_str = inspect_get_if<IEffect::EffectEnum>(effect_name).value_or(IEffect::EffectEnum::Unknown);
-
-    if (effect == IEffect::EffectEnum::Unknown) {
-        effect = is_str;
-
-        if (effect == IEffect::EffectEnum::Unknown) {
-            return false;
-        }
-    }
-
-    intptr_t effect_index = (intptr_t)effect;
-    IEffect::EffectList::list[effect_index]()->show(*(DisplayConfig*)arg, *this);
-    return true;
-}
-
-bool DrawScreen::invoke_method(std::variant<std::string, MethodEnum> effect_name, uintptr_t arg) {
-    auto effect = inspect_get_if<std::string>(effect_name)
-                            .and_then(str_to_enum<MethodEnum>)
-                            .value_or(MethodEnum::Unknown);
-
-    auto is_str = inspect_get_if<MethodEnum>(effect_name).value_or(MethodEnum::Unknown);
-
-    if (effect == MethodEnum::Unknown) {
-        effect = is_str;
-
-        if (effect == MethodEnum::Unknown) {
-            return false;
-        }
-    }
-
-    intptr_t effect_index = (intptr_t)effect;
-
-    const uintptr_t* vtable = *(uintptr_t**)this;
-    ((void(*)(uintptr_t, uintptr_t))vtable[effect_index])((uintptr_t)this, arg);
-
-    return true;
-}
 
 void DrawScreen::delay(uintptr_t arg) {
     auto time = is_ptr<const char*>(arg).and_then(try_parse).value_or(arg);
@@ -145,11 +103,11 @@ std::pair<int, int> DrawScreen::clear_text_region(DisplayConfig& config, int ind
         break;
     case SaoFU::utils::TextClearMethod::ClearTextItself:
         x_begin = config.x_offset;
-        x_end = SaoFU::count_size(config.ws);
+        x_end = SaoFU::count_size(config.param_ws);
         break;
     case SaoFU::utils::TextClearMethod::ClearTextBefore:
         x_begin = 0;
-        x_end = SaoFU::count_size(config.ws) + config.x_offset;
+        x_end = SaoFU::count_size(config.param_ws) + config.x_offset;
         break;
     case SaoFU::utils::TextClearMethod::ClearTextAfter:
         x_begin = config.x_offset;
