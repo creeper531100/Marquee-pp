@@ -19,17 +19,14 @@ public:
 
     DrawScreen& operator=(DrawScreen&& other) noexcept;
 
-    void draw_text(DisplayConfig* param);
-
     template <typename T>
     DrawScreen& display(DisplayConfig& param) {
         std::unique_ptr<IEffect> marquee = std::make_unique<T>();
-        marquee->show(param, *this);
+        marquee->invoke(param, *this);
         return *this;
     }
 
     std::pair<int, int> clear_text_region(DisplayConfig& config, int index = 0, bool clear_region = true);
-
 
     enum class MethodEnum {
         Unknown = -1,
@@ -39,6 +36,7 @@ public:
 
     virtual void delay(uintptr_t param);
     virtual void screen_clear();
+    virtual void draw_text(DisplayConfig* param);
 
     ~DrawScreen();
 

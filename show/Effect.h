@@ -21,7 +21,7 @@ struct DrawScreen;
 struct Marquee;
 struct Slide;
 struct Flash;
-struct DelegateDrawScreen;
+struct DrawScreenDelegate;
 
 struct IEffect {
     enum MethodEnum {
@@ -35,12 +35,13 @@ struct IEffect {
         Flash,
 
         delay        = DrawScreenMethodEnum | 0x00,
-        screen_clear = DrawScreenMethodEnum | 0x10
+        screen_clear = DrawScreenMethodEnum | 0x10,
+        draw_text    = DrawScreenMethodEnum | 0x20,
     };
 
     EffectEnum effect_enum;
 
-    using EffectList = EffectFactory<IEffect, Marquee, Slide, Flash, DelegateDrawScreen>;
+    using EffectList = EffectFactory<IEffect, Marquee, Slide, Flash, DrawScreenDelegate>;
 
     virtual void invoke(DisplayConfig& config, DrawScreen& screen) = 0;
 
@@ -63,7 +64,7 @@ public:
     void invoke(DisplayConfig& config, DrawScreen& scr) override;
 };
 
-class DelegateDrawScreen : public IEffect {
+class DrawScreenDelegate : public IEffect {
 public:
     void invoke(DisplayConfig& config, DrawScreen& scr) override;
 };

@@ -96,7 +96,7 @@ void Flash::invoke(DisplayConfig& config, DrawScreen& scr) {
     }
 }
 
-void DelegateDrawScreen::invoke(DisplayConfig& config, DrawScreen& scr) {
+void DrawScreenDelegate::invoke(DisplayConfig& config, DrawScreen& scr) {
     const uintptr_t* vtable = *(uintptr_t**)&scr;
     const std::string& param = config.param;
     ((void(*)(uintptr_t, uintptr_t))vtable[(uintptr_t)effect_enum])((uintptr_t)&scr, (uintptr_t)param.c_str());
