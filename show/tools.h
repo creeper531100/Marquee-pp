@@ -136,8 +136,6 @@ public:
     }
 };
 
-Maybe<int> resolve_keyword(DisplayConfig& param, std::string value);
-
 template<typename T, typename U>
 Maybe<T> inspect_get_if(U str) {
     T* var = std::get_if<T>(&str);
@@ -166,11 +164,6 @@ Maybe<T> is_ptr(uintptr_t arg) {
     return std::nullopt;
 }
 
+Maybe<int> resolve_keyword(DisplayConfig& param, std::string value);
 Maybe<int> try_parse(std::string str);
-
-inline Maybe<std::string> is_empty_string(const std::string& str) {
-    if (!str.empty()) {
-        return str;
-    }
-    return std::nullopt;
-}
+Maybe<std::string> is_empty_string(const std::string& str);

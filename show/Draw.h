@@ -1,12 +1,10 @@
 ﻿#pragma once
 #include <memory>
 #include <string>
-#include <variant>
 #include <windows.h>
 
 #include "def.h"
 #include "Effect.h"
-#include "magic_enum/magic_enum.hpp"
 
 struct DrawScreenBuilder;
 class DrawScreen {
@@ -27,12 +25,6 @@ public:
     }
 
     std::pair<int, int> clear_text_region(DisplayConfig& config, int index = 0, bool clear_region = true);
-
-    enum class MethodEnum {
-        Unknown = -1,
-        delay,
-        screen_clear
-    };
 
     virtual void delay(uintptr_t param);
     virtual void screen_clear();

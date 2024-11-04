@@ -85,7 +85,6 @@ Maybe<int> determine_position(int pos, const std::wstring& ws) {
     return SaoFU::count_size(wstr);
 }
 
-
 Maybe<int> resolve_keyword(DisplayConfig& param, std::string value) {
     std::stringstream ss(value);
     std::string key = "";
@@ -127,6 +126,13 @@ Maybe<int> try_parse(std::string str) {
     catch (const std::exception& e) {
         return std::nullopt;
     }
+}
+
+Maybe<std::string> is_empty_string(const std::string& str) {
+    if (!str.empty()) {
+        return str;
+    }
+    return std::nullopt;
 }
 
 
